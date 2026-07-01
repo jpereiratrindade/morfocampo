@@ -1,0 +1,3 @@
+project_id,campaign_id,area,plot,transect,tree_id,species,cap_cm,dap_cm,total_height_m,crown_height_m,crown_diameter_ns_m,crown_diameter_ew_m,condition,observer,date,latitude,longitude,notes,source,confidence_flag,raw_input
+PRJ-BUTIA,2026-01,Restinga norte,P01,T01,A-001,Butia odorata,"42,5",,"4,8","2,1","3,4","2,9",viva,Pedro,2026-07-01,-30.0341,-51.2177,CAP observado em campo,csv,ok,
+PRJ-BUTIA,2026-01,Restinga norte,P01,T01,A-002,,,13.8,5.1,1.9,3.0,2.7,desconhecida,Ana,2026-07-01,"-30,0342","-51,2178",DAP observado; especie a confirmar,csv,incompleto,

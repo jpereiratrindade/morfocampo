@@ -1,0 +1,10 @@
+build/
+out/
+out_voice/
+tmp_teste_campo/
+campo_C01/
+*.o
+*.a
+*.so
+*.csv~
+session_voice.csv

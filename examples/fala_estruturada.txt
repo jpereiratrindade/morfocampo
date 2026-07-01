@@ -1,0 +1,4 @@
+projeto PRJ-BUTIA; campanha 2026-01; area Restinga norte; parcela P01; observador Pedro; data 2026-07-01; nova arvore A-023; especie Butia odorata; CAP 42,5; altura total 4,8; altura da copa 2,1; copa norte-sul 3,4; copa leste-oeste 2,9; condicao viva; salvar
+projeto PRJ-BUTIA; campanha 2026-01; area Restinga norte; parcela P01; observador Pedro; data 2026-07-01; arvore A-024; CAP 38,2; altura total 5,1; condicao viva; observacao tronco inclinado; salvar
+projeto PRJ-BUTIA; campanha 2026-01; area Restinga norte; parcela P01; observador Pedro; data 2026-07-01; corrigir arvore A-024; CAP 39,2; salvar
+projeto PRJ-BUTIA; campanha 2026-01; area Restinga norte; parcela P01; observador Ana; data 2026-07-01; nova arvore A-025; DAP 13,4; altura total 4,2; condicao dano; salvar
