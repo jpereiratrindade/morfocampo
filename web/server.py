@@ -40,9 +40,11 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="morfocampo web server")
     p.add_argument("--db",   default="campo.db",         help="Caminho do banco SQLite3")
     p.add_argument("--bin",  default="../build/morfocampo", help="Caminho do binário morfocampo C++")
-    p.add_argument("--port", type=int, default=8000,      help="Porta HTTP")
+    p.add_argument("--port", type=int, default=8000,      help="Porta HTTP/HTTPS")
     p.add_argument("--host", default="0.0.0.0",           help="Host (0.0.0.0 para aceitar celulares na rede)")
     p.add_argument("--audio-dir", default="audio_files",  help="Diretório para armazenar áudios gravados")
+    p.add_argument("--ssl-keyfile", default=None,         help="Caminho para chave SSL")
+    p.add_argument("--ssl-certfile", default=None,        help="Caminho para certificado SSL")
     return p.parse_args()
 
 
@@ -373,10 +375,20 @@ async def export_campaign(campaign_id: int):
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print(f"🌿 morfocampo web — http://{args.host}:{args.port}")
+    protocol = "https" if args.ssl_certfile else "http"
+    print(f"🌿 morfocampo web — {protocol}://{args.host}:{args.port}")
     print(f"   Banco:   {DB_PATH}")
     print(f"   Binário: {args.bin}")
     print(f"   Áudios:  {AUDIO_DIR}/")
     print(f"   Transcrição: {transcriber.get_model_status()['message']}")
     print()
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    uvicorn_kwargs = {
+        "host": args.host,
+        "port": args.port,
+        "log_level": "info",
+    }
+    if args.ssl_keyfile and args.ssl_certfile:
+        uvicorn_kwargs["ssl_keyfile"] = args.ssl_keyfile
+        uvicorn_kwargs["ssl_certfile"] = args.ssl_certfile
+        
+    uvicorn.run(app, **uvicorn_kwargs)

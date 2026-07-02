@@ -30,7 +30,15 @@ echo -e "${YELLOW}⟳  Verificando dependências Python...${RESET}"
 pip install -q -r "$WEB/requirements.txt"
 echo -e "${GREEN}✓  Dependências OK${RESET}"
 
-# ── 3. Informa endereços de acesso ───────────────────────
+# ── 3. Gera certificado SSL temporário (necessário para acesso ao microfone no celular)
+if [[ ! -f "$WEB/cert.pem" ]]; then
+  echo -e "${YELLOW}⟳  Gerando certificado SSL autoassinado...${RESET}"
+  openssl req -x509 -newkey rsa:2048 -keyout "$WEB/key.pem" -out "$WEB/cert.pem" \
+    -days 365 -nodes -subj "/CN=localhost" 2>/dev/null
+  echo -e "${GREEN}✓  Certificado gerado${RESET}"
+fi
+
+# ── 4. Informa endereços de acesso ───────────────────────
 LOCAL_IP=$(ip addr show 2>/dev/null \
   | grep "inet " \
   | grep -v "127.0.0.1" \
@@ -39,20 +47,24 @@ LOCAL_IP=$(ip addr show 2>/dev/null \
   | head -1)
 
 echo ""
-echo -e "${GREEN}🌿 morfocampo web${RESET}"
+echo -e "${GREEN}🌿 morfocampo web (Seguro/HTTPS)${RESET}"
 echo -e "   Banco:    ${CYAN}$DB${RESET}"
 echo -e "   Binário:  ${CYAN}$BIN${RESET}"
 echo ""
-echo -e "   Acesso local:   ${CYAN}http://localhost:$PORT${RESET}"
+echo -e "   Acesso local:   ${CYAN}https://localhost:$PORT${RESET}"
 if [[ -n "$LOCAL_IP" ]]; then
-  echo -e "   Acesso celular: ${CYAN}http://$LOCAL_IP:$PORT${RESET}  ← copie para o celular"
+  echo -e "   Acesso celular: ${CYAN}https://$LOCAL_IP:$PORT${RESET}  ← copie para o celular"
+  echo -e "   ${YELLOW}Nota: No celular, o aviso 'Sua conexão não é particular' é esperado.${RESET}"
+  echo -e "         Clique em 'Avançado' -> 'Ir para $LOCAL_IP (inseguro)' para liberar o microfone."
 fi
 echo ""
 
-# ── 4. Inicia servidor ────────────────────────────────────
+# ── 5. Inicia servidor ────────────────────────────────────
 cd "$WEB"
 exec python3 server.py \
   --db "$DB" \
   --bin "$BIN" \
   --host "$HOST" \
-  --port "$PORT"
+  --port "$PORT" \
+  --ssl-keyfile "key.pem" \
+  --ssl-certfile "cert.pem"
