@@ -21,7 +21,28 @@
     <div class="app-header">
       <div class="logo">morfo<span>campo</span></div>
       <div style="flex:1"></div>
+      <button id="home-user-btn" class="header-badge"
+              style="cursor:pointer;background:rgba(239,68,68,0.15);color:var(--red);border-color:var(--red-dim)"
+              onclick="toggleUserPanel()" title="Definir observador">
+        👤 —
+      </button>
       <button class="btn btn-primary btn-sm" onclick="toggleCreateForm()">+ Campanha</button>
+    </div>
+
+    <!-- Painel de identidade do observador -->
+    <div id="user-panel" style="padding:14px 16px;background:var(--surface);border-bottom:2px solid var(--green-dim);display:none">
+      <div style="font-size:0.8rem;font-weight:600;color:var(--green);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em">👤 Identificação do observador</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="global-observer" type="text"
+               placeholder="Seu nome (ex: Pedro)"
+               autocomplete="name" autocapitalize="words"
+               style="flex:1"
+               onkeydown="if(event.key==='Enter')saveObserver()">
+        <button class="btn btn-primary" onclick="saveObserver()">Salvar</button>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-muted);margin-top:8px">
+        Seu nome será pré-preenchido ao iniciar uma coleta e vinculado a todos os seus registros.
+      </div>
     </div>
 
     <!-- Formulário criar campanha -->

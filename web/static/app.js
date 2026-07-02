@@ -85,7 +85,48 @@ async function api(method, path, body = null, isForm = false) {
   return res.json();
 }
 
-// ─── Tela HOME ────────────────────────────────────────────────────────────────
+// ─── Tela HOME & Identificação do Observador ──────────────────────────────────
+
+function loadGlobalObserver() {
+  const obs = localStorage.getItem("morfocampo_global_observer");
+  if (obs) {
+    State.session.observer = obs;
+    $("home-user-btn").innerHTML = `👤 ${obs}`;
+    $("home-user-btn").style.background = "rgba(34,197,94,0.15)";
+    $("home-user-btn").style.color = "var(--green)";
+    $("home-user-btn").style.borderColor = "var(--green-dim)";
+    $("global-observer").value = obs;
+  }
+}
+
+function toggleUserPanel() {
+  const panel = $("user-panel");
+  if (panel.style.display === "none" || !panel.style.display) {
+    panel.style.display = "block";
+    $("global-observer").focus();
+  } else {
+    panel.style.display = "none";
+  }
+}
+
+function saveObserver() {
+  const obs = $("global-observer").value.trim();
+  if (obs) {
+    localStorage.setItem("morfocampo_global_observer", obs);
+    State.session.observer = obs;
+    toast(`Observador definido: ${obs}`);
+  } else {
+    localStorage.removeItem("morfocampo_global_observer");
+    State.session.observer = "";
+    $("home-user-btn").innerHTML = `👤 —`;
+    $("home-user-btn").style.background = "rgba(239,68,68,0.15)";
+    $("home-user-btn").style.color = "var(--red)";
+    $("home-user-btn").style.borderColor = "var(--red-dim)";
+    toast("Identificação removida", "warn");
+  }
+  loadGlobalObserver();
+  $("user-panel").style.display = "none";
+}
 
 async function loadCampaigns() {
   try {
@@ -846,6 +887,7 @@ async function exportCampaign() {
 
 async function init() {
   showScreen("home");
+  loadGlobalObserver();
   await loadCampaigns();
 
   // Checa status do servidor (binário C++ e transcrição)
