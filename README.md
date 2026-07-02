@@ -45,7 +45,19 @@ A separacao nucleo C++ / interface e proposital: o nucleo fica auditavel e testa
 
 ## Interface Web — rodar e administrar via browser
 
-### Iniciar o servidor
+### Iniciar (comando unico)
+
+```sh
+./run.sh
+```
+
+O script compila o binario C++ se necessario, instala dependencias Python e exibe o IP da rede local para acesso no celular. Porta padrao: **8011**.
+
+```sh
+./run.sh --rebuild   # forca recompilacao do binario C++
+```
+
+### Iniciar manualmente (alternativa)
 
 ```sh
 cd web
@@ -54,7 +66,8 @@ pip install -r requirements.txt
 python server.py \
   --db campo.db \
   --bin ../build/morfocampo \
-  --port 8000
+  --host 0.0.0.0 \
+  --port 8011
 ```
 
 ### Acessar no celular
