@@ -84,8 +84,10 @@ ProcessingResult parseVoiceLine(const std::string& line,
         result.is_correction = true;
     }
 
-    if (capture(text, std::regex(R"((?:arvore|árvore)\s+([A-Za-z0-9_.-]+))", flags), value)) {
+    if (capture(text, std::regex(R"((?:arvore|árvore)\s+([^;]+?)(?=\s+(?:projeto|campanha|parcela|transecto|especie|espécie|cap|dap|circunfer|diametro|diâmetro|altura|copa|condi|observador|observa|data|lat|lon)\b|;|$))", flags), value)) {
         record.tree_id = trailingText(value);
+        // Remove espaços internos substituindo por hífen (ex: "A 023" -> "A-023")
+        record.tree_id = std::regex_replace(record.tree_id, std::regex(R"(\s+)"), "-");
     }
     if (capture(text, std::regex(R"(projeto\s+([A-Za-z0-9_.-]+))", flags), value)) {
         record.project_id = trailingText(value);
@@ -154,8 +156,8 @@ ProcessingResult parseVoiceLine(const std::string& line,
         result.issues.push_back({Severity::Error, line_number, "cap_cm,dap_cm", "fala sem CAP ou DAP"});
     }
     if (record.species.empty()) {
+        // Não incrementa warning_count para não forçar status "revisar", apenas deixa "incompleto"
         result.issues.push_back({Severity::Warning, line_number, "species", "especie ausente na fala"});
-        ++warning_count;
     }
 
     updateConfidence(record, warning_count);
