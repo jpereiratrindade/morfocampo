@@ -5,10 +5,12 @@
 #include "morfocampo/Validator.hpp"
 #include "morfocampo/VoiceCommandParser.hpp"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -21,12 +23,17 @@ void printHelp() {
         << "morfocampo - organizacao e validacao de morfometria de arvores\n\n"
         << "Uso:\n"
         << "  morfocampo init --dir examples\n"
-        << "  morfocampo init-campaign --dir campo_C01 --project MORFO_CAMPO_2026 --campaign C01 --area \"Butiazal Sao Miguel\" --plots P01,P02 --rows 50\n"
+        << "  morfocampo init-campaign --dir campo_C01 --project MORFO_CAMPO_2026 --campaign C01 "
+              "--area \"Butiazal Sao Miguel\" --plots P01,P02 --rows 50\n"
         << "  morfocampo parse-voice --input examples/fala_estruturada.txt --out out/dados_por_voz.csv\n"
-        << "  morfocampo session --project MORFO_2026 --campaign C01 --plot P01 --observer Pedro --date 2026-07-01\n"
-        << "  morfocampo validate --input dados.csv --out out\n"
+        << "  morfocampo session --project MORFO_2026 --campaign C01 --plot P01 --observer Pedro "
+              "--date 2026-07-01 [--max-cap 600] [--max-dap 200] [--max-height 30] [--max-crown 20]\n"
+        << "  morfocampo validate --input dados.csv --out out "
+              "[--max-cap 600] [--max-dap 200] [--max-height 30] [--max-crown 20]\n"
         << "  morfocampo parse-transcript --input transcricoes.txt --out saida.csv\n"
-        << "  morfocampo help\n";
+        << "  morfocampo help\n\n"
+        << "Na sessao interativa, prefixe a frase com 'corrigir' para substituir\n"
+        << "o registro existente com o mesmo tree_id na sessao atual.\n";
 }
 
 std::string optionValue(const std::vector<std::string>& args, const std::string& name) {
@@ -70,6 +77,20 @@ int parsePositiveInt(const std::string& text, int fallback) {
         throw std::runtime_error("--rows deve ser maior que zero");
     }
     return value;
+}
+
+double parseOptionalDouble(const std::vector<std::string>& args,
+                           const std::string& name,
+                           double fallback = std::numeric_limits<double>::infinity()) {
+    const auto text = optionValue(args, name);
+    if (text.empty()) {
+        return fallback;
+    }
+    const double v = std::stod(text);
+    if (v <= 0.0) {
+        throw std::runtime_error(name + " deve ser maior que zero");
+    }
+    return v;
 }
 
 int runInit(const std::vector<std::string>& args) {
@@ -203,9 +224,15 @@ int runValidate(const std::vector<std::string>& args) {
         throw std::runtime_error("validate requer --input e --out");
     }
 
+    morfocampo::validator::RangeConfig range;
+    range.max_cap_cm    = parseOptionalDouble(args, "--max-cap");
+    range.max_dap_cm    = parseOptionalDouble(args, "--max-dap");
+    range.max_height_m  = parseOptionalDouble(args, "--max-height");
+    range.max_crown_m   = parseOptionalDouble(args, "--max-crown");
+
     auto read = morfocampo::csv::readTrees(input);
     auto normalized = morfocampo::normalizer::normalizeRecords(read.records);
-    auto validation = morfocampo::validator::validateRecords(normalized.records);
+    auto validation = morfocampo::validator::validateRecords(normalized.records, range);
 
     std::vector<morfocampo::ValidationIssue> issues;
     issues.insert(issues.end(), read.issues.begin(), read.issues.end());
@@ -298,9 +325,16 @@ int runSession(const std::vector<std::string>& args) {
         throw std::runtime_error("session requer --project, --campaign, --plot, --observer e --date");
     }
 
+    morfocampo::validator::RangeConfig range;
+    range.max_cap_cm   = parseOptionalDouble(args, "--max-cap");
+    range.max_dap_cm   = parseOptionalDouble(args, "--max-dap");
+    range.max_height_m = parseOptionalDouble(args, "--max-height");
+    range.max_crown_m  = parseOptionalDouble(args, "--max-crown");
+
     std::vector<morfocampo::TreeRecord> records;
     std::string line;
     std::cout << "Sessao morfocampo. Digite frases estruturadas; use 'sair' para encerrar.\n";
+    std::cout << "Prefixe com 'corrigir' para substituir o ultimo registro com o mesmo tree_id.\n";
     while (std::cout << "> " && std::getline(std::cin, line)) {
         if (line == "sair" || line == "exit" || line == "quit") {
             break;
@@ -309,12 +343,39 @@ int runSession(const std::vector<std::string>& args) {
         auto normalized = morfocampo::normalizer::normalizeRecords(parsed.records);
         const auto& record = normalized.records.front();
         printInterpreted(record);
+
+        // Validação imediata com faixas configuradas
+        auto issues = morfocampo::validator::validateRecords(normalized.records, range);
+        for (const auto& issue : issues) {
+            if (issue.severity == morfocampo::Severity::Warning) {
+                std::cout << "  Aviso [" << issue.field << "]: " << issue.message << '\n';
+            } else {
+                std::cout << "  ERRO  [" << issue.field << "]: " << issue.message << '\n';
+            }
+        }
+
         std::cout << "Confirmar? [s/n] ";
         std::string answer;
         std::getline(std::cin, answer);
         if (!answer.empty() && (answer[0] == 's' || answer[0] == 'S')) {
-            records.push_back(record);
-            std::cout << "Registro mantido.\n";
+            if (parsed.is_correction && !record.tree_id.empty()) {
+                // Substituir registro anterior com mesmo tree_id
+                auto it = std::find_if(records.begin(), records.end(),
+                    [&record](const morfocampo::TreeRecord& r) {
+                        return r.tree_id == record.tree_id;
+                    });
+                if (it != records.end()) {
+                    *it = record;
+                    std::cout << "Registro de " << record.tree_id << " corrigido.\n";
+                } else {
+                    records.push_back(record);
+                    std::cout << "Arvore " << record.tree_id
+                              << " nao encontrada na sessao; adicionada como novo registro.\n";
+                }
+            } else {
+                records.push_back(record);
+                std::cout << "Registro mantido.\n";
+            }
         } else {
             std::cout << "Registro descartado.\n";
         }

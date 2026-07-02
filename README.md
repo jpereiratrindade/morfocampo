@@ -1,51 +1,114 @@
 # morfocampo
 
-`morfocampo` e um MVP em C++20 para reduzir digitacao em campo, interpretando fala estruturada ja transcrita como texto e convertendo esses comandos em registros de morfometria de arvores.
+`morfocampo` e um sistema de coleta de dados morfometricos de arvores para uso em campo, composto de:
 
-O problema inicial e simples: escrever ou digitar medidas durante a coleta aumenta risco de erro, retrabalho e perda de rastreabilidade. Este MVP nao grava audio e nao transcreve audio; ele assume que a fala ja chegou como texto curto e padronizado, entao interpreta, normaliza, valida e exporta dados auditaveis.
+- **Nucleo C++20** (`src/`, `include/`) — interpreta fala estruturada transcrita, normaliza, valida e exporta CSV/JSONL. Auditavel, testavel, sem dependencias externas.
+- **Interface web** (`web/`) — SPA mobile-first com gravacao de audio, transcricao local (Whisper), persistencia em SQLite3 e painel de administracao via browser.
 
-## Escopo do MVP
+O papel continua como base documental fisica de referencia. A interface digital complementa e acelera o registro sem substituir o protocolo em papel.
+
+## Escopo atual
 
 - Interpretar frases curtas de fala estruturada ja transcrita.
-- Preservar a frase original em `raw_input`.
-- Marcar origem em `source` e confianca em `confidence_flag`.
-- Gerar template CSV de coleta.
+- Preservar a frase original em `raw_input`; marcar origem em `source` e confianca em `confidence_flag`.
 - Gerar pacote de campanha com planilha digital CSV e listas de apoio.
-- Ler CSV preenchido.
 - Normalizar textos, condicoes e numeros com virgula ou ponto decimal.
 - Calcular DAP a partir de CAP, ou CAP a partir de DAP.
 - Validar regras explicitas de campos obrigatorios, faixas numericas, datas ISO e duplicidades.
 - Exportar CSV normalizado e JSONL.
 - Gerar relatorio Markdown de validacao.
-- Converter transcricoes de texto controladas para CSV intermediario com regex.
+- **Interface web mobile**: gravar audio → transcrever → interpretar → confirmar → SQLite3.
+- **Registros exclusivos por observador** na coleta; validacao consolidada por campanha.
+- **Painel de administracao web**: visao de todos os observadores, flags de confianca, validar e exportar.
 
-## Fora do MVP
+## Fora do escopo atual
 
-Este MVP nao implementa app mobile, interface grafica, banco remoto, IA, API externa, gravacao de audio, leitura direta de audio, Whisper ou transcricao automatica. A arquitetura deixa espaco para integrar `whisper.cpp`, Vosk, ODK, KoboToolbox, QField ou app mobile depois.
+Integracao nativa com ODK/Kobo, QField/QGIS, app mobile nativo, banco remoto, autenticacao multiusuario. A arquitetura deixa espaco para integrar `whisper.cpp`, Vosk, ODK, KoboToolbox, QField ou app mobile depois.
 
-## Aceita audio?
+## Fluxos de coleta
 
-Nao. O MVP atual nao recebe `.wav`, `.mp3`, microfone ou qualquer arquivo de som.
-
-Ele recebe texto que representa uma fala ja transcrita:
-
-```text
-arvore A-023 CAP 42,5 altura total 4,8 condicao viva
-```
-
-O fluxo atual e:
+### Fluxo CLI (texto transcrito)
 
 ```text
-fala em campo -> transcricao por outro sistema -> morfocampo parse-voice -> CSV -> validate -> relatorio
+fala em campo -> transcricao manual -> morfocampo parse-voice -> CSV -> validate -> relatorio
 ```
 
-O fluxo futuro pode ser:
+### Fluxo Web (audio direto no celular)
 
 ```text
-audio -> whisper.cpp/Vosk/app mobile -> texto -> morfocampo
+celular: microfone -> Web Speech API (online) -> texto
+                   -> blob audio -> servidor -> Whisper (offline)
+                                    -> morfocampo C++ -> interpretar -> confirmar -> SQLite3
 ```
 
-Essa separacao e proposital: o nucleo C++ fica pequeno, auditavel e testavel antes de acoplar reconhecimento de voz.
+A separacao nucleo C++ / interface e proposital: o nucleo fica auditavel e testavel independente de como os dados chegam.
+
+## Interface Web — rodar e administrar via browser
+
+### Iniciar o servidor
+
+```sh
+cd web
+pip install -r requirements.txt
+
+python server.py \
+  --db campo.db \
+  --bin ../build/morfocampo \
+  --port 8000
+```
+
+### Acessar no celular
+
+O celular deve estar na mesma rede WiFi do notebook (ou USB tethering):
+
+```sh
+# Descobrir o IP do notebook:
+ip addr show | grep "inet " | grep -v 127.0.0.1
+
+# Abrir no celular:
+http://<IP-do-notebook>:8000
+```
+
+### Telas disponíveis
+
+| Tela | Acesso | Função |
+|---|---|---|
+| **Home** | `/` raiz | Lista campanhas; criar nova campanha |
+| **Coleta** | botao Coletar | Gravar audio, interpretar, confirmar — registros exclusivos por observador |
+| **Registros** | aba Registros | Lista e corrige registros do observador atual |
+| **Validar** | aba Validar | Valida todos os observadores da campanha; exporta ZIP |
+| **⚙ Admin** | botao Admin | Visao consolidada: todos os observadores, flags, validar, exportar, excluir |
+
+### Painel de administracao (`⚙ Admin`)
+
+Acessivel na tela inicial ao lado de cada campanha. Mostra:
+
+- Total de registros e distribuicao de flags (OK / Revisar / Incompleto / Erro)
+- Registros agrupados por observador (expandiveis)
+- Ultima validacao (data, erros, avisos)
+- Botoes: **Validar campanha** (todos os observadores) e **Exportar ZIP** (CSV + relatorio)
+
+### Transcrição de audio
+
+| Situacao | Motor | Requisito |
+|---|---|---|
+| Com internet | Web Speech API (browser, tempo real) | Nenhum |
+| Sem internet | faster-whisper no servidor | `pip install faster-whisper` |
+| Sem microfone | Digitacao manual na tela | — |
+
+Para transcrição offline (campo remoto sem internet):
+
+```sh
+pip install faster-whisper
+# Modelo 'small' (~460 MB) baixado automaticamente na primeira transcricao
+```
+
+### Documentação interativa da API
+
+```
+http://localhost:8000/docs
+```
+
 
 ## Compilar e testar
 
@@ -100,6 +163,18 @@ Converter fala estruturada ja transcrita:
 ./build/morfocampo validate --input out/dados_por_voz.csv --out out
 ```
 
+Validar com limites de faixa configuraveis (avisos, nao erros):
+
+```sh
+./build/morfocampo validate \
+  --input out/dados_por_voz.csv \
+  --out out \
+  --max-cap 600 \
+  --max-dap 200 \
+  --max-height 30 \
+  --max-crown 20
+```
+
 Sessao interativa simples:
 
 ```sh
@@ -109,7 +184,9 @@ Sessao interativa simples:
   --plot P01 \
   --observer Pedro \
   --date 2026-07-01 \
-  --out sessao_voz.csv
+  --out sessao_voz.csv \
+  --max-cap 600 \
+  --max-height 30
 ```
 
 Na sessao, digite frases como:
@@ -118,11 +195,19 @@ Na sessao, digite frases como:
 arvore A-023 CAP 42,5 altura total 4,8 condicao viva
 ```
 
+Para corrigir um registro ja confirmado na mesma sessao, prefixe com `corrigir`:
+
+```text
+corrigir arvore A-023 CAP 43,0
+```
+
+O sistema localiza o registro com o mesmo `tree_id` e o substitui. Se a arvore nao foi registrada ainda na sessao, adiciona como novo registro com aviso.
+
 Saidas geradas:
 
 - `out/arvores_normalizadas.csv`
 - `out/arvores_normalizadas.jsonl`
-- `out/relatorio_validacao.md`
+- `out/relatorio_validacao.md` (inclui secao **Registros para revisar**)
 
 Converter transcricoes controladas:
 
@@ -190,6 +275,52 @@ arvore A-023; especie Butia odorata; CAP 42,5 cm; altura total 4,8 m; altura da 
 Sinonimos reconhecidos incluem `CAP`, `circunferencia`, `DAP`, `diametro`, `altura`, `altura total`, `copa ns`, `copa norte-sul`, `copa ew`, `copa leste-oeste` e `copa leste oeste`.
 
 O CSV gerado deve passar pelo fluxo principal de validacao.
+
+## Limitacoes do parser de voz
+
+O parser e deterministico e usa regex. Ele funciona bem para fala estruturada e padronizada, mas **falha silenciosamente** em varios padroes naturais da fala. Treine os observadores para usar o protocolo abaixo.
+
+### O que o parser reconhece
+
+```text
+arvore A-023 CAP 42,5 altura total 4,8 condicao viva
+arvore A-023; especie Butia odorata; CAP 42,5 cm; condicao viva
+nova arvore A-023 DAP 13,5
+corrigir arvore A-023 CAP 43,0
+```
+
+- Numeros com virgula (`42,5`) ou ponto decimal (`42.5`).
+- Palavras-chave em qualquer ordem, separadas por espaco ou ponto-e-virgula.
+- Prefixo `nova`, `novo`, `salvar` (ignorados).
+- Prefixo `corrigir` (substitui registro com mesmo `tree_id` na sessao).
+
+### O que o parser NAO reconhece (limitacoes conhecidas)
+
+```text
+# Numero por extenso — NAO funciona
+a arvore tem quarenta e dois de CAP
+
+# Ordem das palavras sem palavra-chave — NAO funciona
+42,5 e a circunferencia da arvore 023
+
+# Fracao oral — NAO funciona
+CAP quarenta e dois e meio
+
+# Identificador com espaco — NAO funciona
+arvore A 023 (use A-023 ou A023)
+
+# Condicao com acento nao mapeado — cuidado
+condição abatida (nao esta na lista controlada)
+```
+
+### Protocolo de fala recomendado para treinamento de observadores
+
+1. Sempre identifique a arvore primeiro: `arvore [ID]`
+2. Informe CAP ou DAP com numero: `CAP 42,5` ou `DAP 13,4`
+3. Use virgula ou ponto decimal, nunca por extenso.
+4. Informe condicao com uma das palavras controladas: `viva`, `morta`, `rebrote`, `dano`, `desconhecida`.
+5. Para corrigir: `corrigir arvore [ID] [campo] [valor]`
+6. Fale devagar e com pausas entre os campos.
 
 ## Fluxo de campo recomendado
 

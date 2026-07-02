@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a1628">
+  <title>morfocampo</title>
+  <meta name="description" content="Coleta de dados morfométricos de campo com áudio e validação automática">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════════════
+       TELA 1 — HOME: lista campanhas / cria campanha
+  ════════════════════════════════════════════════════ -->
+  <div class="screen active" data-screen="home">
+    <div class="app-header">
+      <div class="logo">morfo<span>campo</span></div>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary btn-sm" onclick="toggleCreateForm()">+ Campanha</button>
+    </div>
+
+    <!-- Formulário criar campanha -->
+    <div id="create-form" class="hidden" style="padding:16px;background:var(--surface);border-bottom:1px solid var(--border)">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <h2 style="margin-bottom:4px">Nova campanha</h2>
+        <div class="form-group">
+          <label for="new-project">Projeto *</label>
+          <input id="new-project" type="text" placeholder="ex: PRJ-BUTIA">
+        </div>
+        <div class="form-group">
+          <label for="new-campaign">Campanha *</label>
+          <input id="new-campaign" type="text" placeholder="ex: C01">
+        </div>
+        <div class="form-group">
+          <label for="new-area">Área</label>
+          <input id="new-area" type="text" placeholder="ex: Butiazal São Miguel">
+        </div>
+        <details style="color:var(--text-dim);font-size:0.85rem">
+          <summary style="cursor:pointer;user-select:none;margin-bottom:8px">Limites de faixa (opcional)</summary>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+            <div class="form-group">
+              <label for="new-max-cap">CAP máx (cm)</label>
+              <input id="new-max-cap" type="text" placeholder="600">
+            </div>
+            <div class="form-group">
+              <label for="new-max-dap">DAP máx (cm)</label>
+              <input id="new-max-dap" type="text" placeholder="200">
+            </div>
+            <div class="form-group">
+              <label for="new-max-height">Alt. máx (m)</label>
+              <input id="new-max-height" type="text" placeholder="30">
+            </div>
+          </div>
+        </details>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" style="flex:1" onclick="createCampaign()">Criar campanha</button>
+          <button class="btn btn-ghost" onclick="toggleCreateForm()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="card-title" style="padding:0 0 4px">Campanhas ativas</div>
+      <div id="campaign-list"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TELA ADMIN — visão consolidada de uma campanha
+  ════════════════════════════════════════════════════ -->
+  <div class="screen" data-screen="admin">
+    <div class="app-header">
+      <button class="header-back" onclick="showScreen('home')">‹</button>
+      <div class="header-title" id="admin-title">Administração</div>
+      <span class="header-badge" style="background:rgba(56,189,248,0.15);color:var(--blue);border-color:var(--blue)">ADMIN</span>
+    </div>
+
+    <div class="content">
+      <!-- Resumo da campanha -->
+      <div class="card" id="admin-campaign-info"></div>
+
+      <!-- Stats consolidados -->
+      <div id="admin-stats"></div>
+
+      <!-- Última validação -->
+      <div id="admin-last-validation"></div>
+
+      <!-- Ações rápidas -->
+      <div style="display:flex;gap:10px">
+        <button id="admin-validate-btn" class="btn btn-primary" style="flex:1"
+                onclick="adminValidate()">▶ Validar campanha</button>
+        <button class="btn btn-ghost" onclick="adminExport()" title="Exportar ZIP">⬇ Exportar</button>
+      </div>
+
+      <!-- Registros por observador -->
+      <div id="admin-by-observer"></div>
+
+      <!-- Relatório inline (após validação) -->
+      <div id="admin-report"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TELA 2 — SESSION SETUP: parcela + observador
+  ════════════════════════════════════════════════════ -->
+  <div class="screen" data-screen="session-setup">
+    <div class="app-header">
+      <button class="header-back" onclick="showScreen('home')">‹</button>
+      <div class="header-title" id="setup-campaign-name">Campanha</div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <h2 style="margin-bottom:16px">Identificação do observador</h2>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="form-group">
+            <label for="setup-observer">Observador *</label>
+            <input id="setup-observer" type="text"
+                   placeholder="Nome do observador"
+                   autocomplete="name"
+                   autocapitalize="words">
+          </div>
+          <div class="form-group">
+            <label for="setup-plot">Parcela *</label>
+            <input id="setup-plot" type="text"
+                   placeholder="ex: P01"
+                   autocapitalize="characters">
+          </div>
+          <div class="form-group">
+            <label for="setup-date">Data</label>
+            <input id="setup-date" type="date">
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:0.85rem;color:var(--text-dim)">
+            🗒 Cada observador vê apenas os próprios registros na sessão.<br>
+            A validação final consolida todos os observadores da campanha.
+          </div>
+          <button class="btn btn-primary" style="margin-top:4px" onclick="startSession()">
+            Iniciar coleta
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TELA 3 — MAIN: coleta / registros / validação
+  ════════════════════════════════════════════════════ -->
+  <div class="screen" data-screen="main">
+
+    <!-- Header fixo da sessão -->
+    <div class="app-header">
+      <button class="header-back" onclick="showScreen('session-setup')">‹</button>
+      <div class="header-title" id="session-title">Sessão</div>
+      <span class="header-badge" id="session-observer-badge">—</span>
+    </div>
+
+    <!-- Tabs de navegação -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="collect" onclick="switchTab('collect')">🎙 Coletar</button>
+      <button class="tab-btn" data-tab="records" onclick="switchTab('records')">
+        📋 Registros <span id="records-count" style="font-size:0.75rem;background:var(--border);padding:1px 6px;border-radius:99px;margin-left:4px">0</span>
+      </button>
+      <button class="tab-btn" data-tab="validate" onclick="switchTab('validate')">✓ Validar</button>
+    </div>
+
+    <!-- ── Tab: COLETAR ─────────────────────────────── -->
+    <div class="tab-panel active" data-tab="collect" style="flex:1;overflow-y:auto">
+      <div class="content">
+
+        <!-- Área do microfone -->
+        <div class="mic-area">
+          <button id="mic-btn" onclick="toggleMic()" aria-label="Gravar áudio">
+            <span id="mic-icon">🎙</span>
+          </button>
+          <div class="mic-status" id="mic-status">Toque para gravar</div>
+        </div>
+
+        <!-- Transcrição -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Transcrição</span>
+            <button class="btn btn-ghost btn-sm" onclick="parseCurrentTranscript()">Interpretar ›</button>
+          </div>
+          <div id="transcript-display" class="empty">A transcrição aparecerá aqui…</div>
+        </div>
+
+        <!-- Entrada manual (alternativa ao microfone) -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px">Ou digite a frase</div>
+          <div style="display:flex;gap:8px">
+            <input id="manual-input" type="text"
+                   placeholder="arvore A-023 CAP 42,5 condicao viva"
+                   style="flex:1"
+                   onkeydown="if(event.key==='Enter')parseManualText()">
+            <button class="btn btn-ghost btn-sm" onclick="parseManualText()">›</button>
+          </div>
+        </div>
+
+        <!-- Campos interpretados -->
+        <div id="parsed-fields"></div>
+
+        <!-- Ações de confirmação -->
+        <div id="confirm-actions" class="hidden" style="display:flex;gap:10px;padding-bottom:16px">
+          <button class="btn btn-primary" style="flex:2" onclick="confirmRecord()">✓ Confirmar registro</button>
+          <button class="btn btn-danger"  style="flex:1" onclick="discardRecord()">✗ Descartar</button>
+        </div>
+
+        <!-- Protocolo de fala -->
+        <details>
+          <summary style="cursor:pointer;color:var(--text-dim);font-size:0.85rem;user-select:none;padding:8px 0">
+            📖 Protocolo de fala
+          </summary>
+          <div class="card" style="margin-top:8px;font-size:0.85rem;line-height:1.8;color:var(--text-dim)">
+            <p>Fale de forma estruturada, pausada:</p>
+            <code style="display:block;margin:8px 0;white-space:pre-wrap">arvore A-023 CAP 42,5 altura total 4,8 condição viva</code>
+            <p>Para corrigir: <code>corrigir arvore A-023 CAP 43,0</code></p>
+            <p style="margin-top:8px"><strong style="color:var(--amber)">⚠ Não reconhecido:</strong></p>
+            <ul style="margin-left:16px;color:var(--text-muted)">
+              <li>Números por extenso ("quarenta e dois")</li>
+              <li>Identificador com espaço ("A 023" → use "A-023")</li>
+              <li>Condições fora da lista controlada</li>
+            </ul>
+          </div>
+        </details>
+
+      </div>
+    </div>
+
+    <!-- ── Tab: REGISTROS ──────────────────────────── -->
+    <div class="tab-panel" data-tab="records" style="flex:1;overflow-y:auto">
+      <div class="content">
+        <div class="card" style="background:rgba(34,197,94,0.06);border-color:var(--green-dim)">
+          <div style="font-size:0.85rem;color:var(--green-text)">
+            🔒 Exibindo somente seus registros nesta sessão.
+            A validação consolida todos os observadores da campanha.
+          </div>
+        </div>
+        <div id="records-list"></div>
+      </div>
+    </div>
+
+    <!-- ── Tab: VALIDAR ────────────────────────────── -->
+    <div class="tab-panel" data-tab="validate" style="flex:1;overflow-y:auto">
+      <div class="content">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:4px">Campanha</div>
+          <div id="validate-campaign-name" style="font-weight:600;color:var(--text-hi);margin-bottom:12px">—</div>
+          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px">
+            Valida <strong style="color:var(--text)">todos os observadores</strong> da campanha
+            (campos obrigatórios, faixas, duplicidades).
+          </div>
+          <div style="display:flex;gap:10px">
+            <button id="validate-btn" class="btn btn-primary" style="flex:1" onclick="runValidation()">
+              ▶ Validar campanha
+            </button>
+            <button class="btn btn-ghost" onclick="exportCampaign()" title="Exportar CSV + relatório">
+              ⬇ Exportar
+            </button>
+          </div>
+        </div>
+
+        <div id="report-container"></div>
+
+        <div class="card" style="font-size:0.82rem;color:var(--text-dim)">
+          🗒 <strong style="color:var(--text)">Referência cruzada com papel:</strong>
+          compare o relatório gerado com a planilha impressa antes de finalizar a campanha.
+          O arquivo exportado é compatível com <code>morfocampo validate</code> no terminal.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screen main -->
+
+</div><!-- /app -->
+
+<!-- Toast container -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

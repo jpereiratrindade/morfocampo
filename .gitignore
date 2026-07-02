@@ -8,3 +8,12 @@ campo_C01/
 *.so
 *.csv~
 session_voice.csv
+
+# web runtime
+web/*.db
+web/audio_files/
+web/__pycache__/
+web/**/__pycache__/
+*.pyc
+.venv/
+venv/

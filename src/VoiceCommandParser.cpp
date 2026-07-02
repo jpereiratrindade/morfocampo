@@ -15,7 +15,7 @@ std::string lower(std::string text) {
 }
 
 std::string cleanCommandPrefix(std::string text) {
-    text = std::regex_replace(text, std::regex(R"(\b(?:nova|novo|corrigir|salvar)\b)", std::regex::icase), " ");
+    text = std::regex_replace(text, std::regex(R"(\b(?:nova|novo|salvar)\b)", std::regex::icase), " ");
     return normalizer::normalizeSpaces(std::move(text));
 }
 
@@ -78,6 +78,11 @@ ProcessingResult parseVoiceLine(const std::string& line,
     const auto flags = std::regex::ECMAScript | std::regex::icase;
     std::string value;
     std::size_t warning_count = 0;
+
+    // Detectar intenção de correção ANTES de limpar o prefixo
+    if (std::regex_search(line, std::regex(R"(\bcorrigir\b)", std::regex::icase))) {
+        result.is_correction = true;
+    }
 
     if (capture(text, std::regex(R"((?:arvore|árvore)\s+([A-Za-z0-9_.-]+))", flags), value)) {
         record.tree_id = trailingText(value);

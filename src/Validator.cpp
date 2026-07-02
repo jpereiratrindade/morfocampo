@@ -1,5 +1,6 @@
 #include "morfocampo/Validator.hpp"
 
+#include <cmath>
 #include <regex>
 #include <set>
 #include <string>
@@ -41,7 +42,8 @@ std::string duplicateKey(const TreeRecord& record) {
 
 } // namespace
 
-std::vector<ValidationIssue> validateRecords(const std::vector<TreeRecord>& records) {
+std::vector<ValidationIssue> validateRecords(const std::vector<TreeRecord>& records,
+                                              const RangeConfig& range) {
     std::vector<ValidationIssue> issues;
     const std::regex iso_date(R"(^\d{4}-\d{2}-\d{2}$)");
     const std::set<std::string> allowed_conditions{
@@ -83,6 +85,23 @@ std::vector<ValidationIssue> validateRecords(const std::vector<TreeRecord>& reco
         if (record.species.empty()) {
             issues.push_back({Severity::Warning, record.source_line, "species", "especie vazia"});
         }
+
+        // Validações de faixa configurável (Warning — não bloqueiam exportação)
+        auto warnRange = [&](const std::string& field,
+                             const std::optional<double>& val,
+                             double max_val) {
+            if (val.has_value() && std::isfinite(max_val) && *val > max_val) {
+                issues.push_back({Severity::Warning, record.source_line, field,
+                    "valor " + std::to_string(*val) + " excede limite configurado (" +
+                    std::to_string(max_val) + "); verifique a medicao"});
+            }
+        };
+        warnRange("cap_cm",               record.cap_cm,               range.max_cap_cm);
+        warnRange("dap_cm",               record.dap_cm,               range.max_dap_cm);
+        warnRange("total_height_m",       record.total_height_m,       range.max_height_m);
+        warnRange("crown_height_m",       record.crown_height_m,       range.max_crown_m);
+        warnRange("crown_diameter_ns_m",  record.crown_diameter_ns_m,  range.max_crown_m);
+        warnRange("crown_diameter_ew_m",  record.crown_diameter_ew_m,  range.max_crown_m);
 
         if (!record.project_id.empty() && !record.campaign_id.empty() &&
             !record.plot.empty() && !record.tree_id.empty()) {

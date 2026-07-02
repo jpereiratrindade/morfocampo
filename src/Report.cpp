@@ -56,9 +56,29 @@ void writeValidationReport(const std::filesystem::path& output,
     out << "- Total de registros: " << records.size() << '\n';
     out << "- Registros validos: " << valid_count << '\n';
     out << "- Registros com erro: " << records_with_error.size() << '\n';
-    out << "- Registros para revisar: " << review_count << '\n';
+    out << "- Registros para revisar (confidence_flag): " << review_count << '\n';
     out << "- Erros: " << error_count << '\n';
     out << "- Avisos: " << warning_count << "\n\n";
+
+    // --- Seção acionável: registros que precisam de atenção imediata ---
+    out << "## Registros para revisar\n\n";
+    bool has_review = false;
+    for (const auto& record : records) {
+        const auto& flag = record.confidence_flag;
+        if (flag == "revisar" || flag == "incompleto" || flag == "erro") {
+            has_review = true;
+            out << "- **" << (record.tree_id.empty() ? "(sem id)" : record.tree_id)
+                << "** [" << flag << "]";
+            if (!record.raw_input.empty()) {
+                out << " — `" << record.raw_input << '`';
+            }
+            out << '\n';
+        }
+    }
+    if (!has_review) {
+        out << "Nenhum registro com flag de revisao.\n";
+    }
+    out << '\n';
 
     out << "## Erros por linha\n\n";
     if (errors_by_line.empty()) {

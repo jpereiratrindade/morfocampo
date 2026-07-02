@@ -38,4 +38,17 @@ int main() {
     const auto incomplete = morfocampo::voice::parseVoiceLine("altura total 5,1 condicao viva", 3, defaults);
     assert(incomplete.records.front().confidence_flag == "erro");
     assert(!incomplete.issues.empty());
+
+    // Teste: 'corrigir' detecta intencao de correcao
+    const auto correction = morfocampo::voice::parseVoiceLine(
+        "corrigir arvore A-023 CAP 43,0 condicao viva", 4, defaults);
+    assert(correction.is_correction);
+    assert(correction.records.front().tree_id == "A-023");
+    assert(correction.records.front().cap_cm_text == "43,0");
+
+    // Teste: linha normal nao marca correcao
+    const auto normal = morfocampo::voice::parseVoiceLine(
+        "nova arvore A-030 CAP 35,0 condicao viva", 5, defaults);
+    assert(!normal.is_correction);
+    assert(normal.records.front().tree_id == "A-030");
 }

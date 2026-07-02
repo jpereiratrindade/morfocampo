@@ -68,6 +68,7 @@ struct TreeRecord {
 struct ProcessingResult {
     std::vector<TreeRecord> records;
     std::vector<ValidationIssue> issues;
+    bool is_correction{false};
 };
 
 } // namespace morfocampo
