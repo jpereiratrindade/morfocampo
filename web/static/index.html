@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#0a1628">
   <title>morfocampo</title>
   <meta name="description" content="Coleta de dados morfométricos de campo com áudio e validação automática">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=20260703c">
 </head>
 <body>
 <div id="app">
@@ -116,6 +116,8 @@
         <button id="admin-validate-btn" class="btn btn-primary" style="flex:1"
                 onclick="adminValidate()">▶ Validar campanha</button>
         <button class="btn btn-ghost" onclick="adminExport()" title="Exportar ZIP">⬇ Exportar</button>
+        <button class="btn btn-ghost" style="color:var(--irder);border-color:var(--irder-border)"
+                onclick="openIrderModal()" title="Importar CSV do protocolo IRDER">🌳 IRDER</button>
       </div>
 
       <!-- Registros por observador -->
@@ -231,16 +233,25 @@
           <button class="btn btn-danger"  style="flex:1" onclick="discardRecord()">✗ Descartar</button>
         </div>
 
-        <!-- Protocolo de fala -->
-        <details>
-          <summary style="cursor:pointer;color:var(--text-dim);font-size:0.85rem;user-select:none;padding:8px 0">
-            📖 Protocolo de fala
           </summary>
           <div class="card" style="margin-top:8px;font-size:0.85rem;line-height:1.8;color:var(--text-dim)">
             <p>Fale de forma estruturada, pausada:</p>
-            <code style="display:block;margin:8px 0;white-space:pre-wrap">arvore A-023 CAP 42,5 altura total 4,8 condição viva</code>
+            <code style="display:block;margin:8px 0;white-space:pre-wrap;color:var(--primary)">arvore A-023 espécie Butia odorata latitude -30,5 longitude -54,2 CAP 42,5 altura total 4,8 altura da copa 2,2 copa ns 3,5 copa lo 3,1 condição viva <span style="color:var(--irder)">HF 2,5 HIC 1,5 densicopa 4 forma TL posição dossel característica PF característica 2 seca</span></code>
             <p>Para corrigir: <code>corrigir arvore A-023 CAP 43,0</code></p>
-            <p style="margin-top:8px"><strong style="color:var(--amber)">⚠ Não reconhecido:</strong></p>
+
+            <div style="margin-top:12px">
+              <strong style="color:var(--irder)">Campos IRDER suportados:</strong>
+              <ul style="margin-top:4px;padding-left:18px;color:var(--text-muted)">
+                <li><code>HF</code> ou <code>altura do fuste</code> (ex: HF 2,5)</li>
+                <li><code>HIC</code> ou <code>altura de inserção</code> (ex: HIC 1,5)</li>
+                <li><code>Densicopa</code> (ex: densicopa 4)</li>
+                <li><code>Forma</code> (ex: forma fuste TL)</li>
+                <li><code>Posição</code> (ex: posição sociológica dossel)</li>
+                <li><code>Característica 1 / 2</code> (ex: característica PF característica 2 seca)</li>
+              </ul>
+            </div>
+
+            <p style="margin-top:12px"><strong style="color:var(--amber)">⚠ Não reconhecido:</strong></p>
             <ul style="margin-left:16px;color:var(--text-muted)">
               <li>Números por extenso ("quarenta e dois")</li>
               <li>Identificador com espaço ("A 023" → use "A-023")</li>
@@ -299,9 +310,86 @@
 
 </div><!-- /app -->
 
+<!-- ═══════════════════════════════════════════════════
+     MODAL — Importação CSV IRDER
+════════════════════════════════════════════════════ -->
+<div id="irder-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);overflow-y:auto;padding:16px">
+  <div style="max-width:560px;margin:0 auto;background:var(--card);border:1px solid var(--irder-border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:1.1rem;font-weight:700;color:var(--irder)">🌳 Importar CSV IRDER</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:2px">Planilha exportada do LibreOffice (separador <code>;</code> ou <code>,</code>)</div>
+      </div>
+      <button onclick="closeIrderModal()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;padding:4px">✕</button>
+    </div>
+
+    <!-- Mapeamento de campos esperados -->
+    <details open>
+      <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:var(--irder-dim);user-select:none;margin-bottom:10px;list-style:none">
+        📋 Colunas esperadas no CSV
+      </summary>
+      <div style="overflow-x:auto;margin-bottom:16px">
+        <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
+          <thead>
+            <tr style="background:rgba(74,222,128,0.08)">
+              <th style="padding:6px 10px;text-align:left;color:var(--irder);border-bottom:1px solid var(--irder-border)">Coluna na planilha</th>
+              <th style="padding:6px 10px;text-align:left;color:var(--text-dim);border-bottom:1px solid var(--irder-border)">Campo no sistema</th>
+              <th style="padding:6px 10px;text-align:left;color:var(--text-muted);border-bottom:1px solid var(--irder-border)">Tipo</th>
+            </tr>
+          </thead>
+          <tbody id="irder-fields-table">
+            <tr><td style="padding:5px 10px;color:var(--text-hi);font-family:var(--font-mono)">data</td><td style="padding:5px 10px;color:var(--text-dim)">date</td><td style="padding:5px 10px;color:var(--text-muted)">texto</td></tr>
+            <tr style="background:rgba(255,255,255,0.02)"><td style="padding:5px 10px;color:var(--text-hi);font-family:var(--font-mono)">Linha</td><td style="padding:5px 10px;color:var(--text-dim)">plot (parcela)</td><td style="padding:5px 10px;color:var(--text-muted)">texto</td></tr>
+            <tr><td style="padding:5px 10px;color:var(--text-hi);font-family:var(--font-mono)">Espécie</td><td style="padding:5px 10px;color:var(--text-dim)">species</td><td style="padding:5px 10px;color:var(--text-muted)">texto</td></tr>
+            <tr style="background:rgba(255,255,255,0.02)"><td style="padding:5px 10px;color:var(--text-hi);font-family:var(--font-mono)">GPS</td><td style="padding:5px 10px;color:var(--text-dim)">tree_id</td><td style="padding:5px 10px;color:var(--text-muted)">texto/número</td></tr>
+            <tr><td style="padding:5px 10px;color:var(--text-hi);font-family:var(--font-mono)">CAP</td><td style="padding:5px 10px;color:var(--text-dim)">cap_cm</td><td style="padding:5px 10px;color:var(--amber)">número</td></tr>
+            <tr style="background:rgba(255,255,255,0.02)"><td style="padding:5px 10px;color:var(--text-hi);font-family:var(--font-mono)">HT</td><td style="padding:5px 10px;color:var(--text-dim)">total_height_m</td><td style="padding:5px 10px;color:var(--amber)">número</td></tr>
+            <tr><td style="padding:5px 10px;color:var(--irder);font-family:var(--font-mono)">HF</td><td style="padding:5px 10px;color:var(--irder-dim)">stem_height_m</td><td style="padding:5px 10px;color:var(--amber)">número</td></tr>
+            <tr style="background:rgba(255,255,255,0.02)"><td style="padding:5px 10px;color:var(--irder);font-family:var(--font-mono)">HIC</td><td style="padding:5px 10px;color:var(--irder-dim)">crown_insertion_m</td><td style="padding:5px 10px;color:var(--amber)">número</td></tr>
+            <tr><td style="padding:5px 10px;color:var(--irder);font-family:var(--font-mono)">Densicopa</td><td style="padding:5px 10px;color:var(--irder-dim)">crown_density</td><td style="padding:5px 10px;color:var(--amber)">inteiro 1–5</td></tr>
+            <tr style="background:rgba(255,255,255,0.02)"><td style="padding:5px 10px;color:var(--irder);font-family:var(--font-mono)">Forma Fuste</td><td style="padding:5px 10px;color:var(--irder-dim)">stem_form</td><td style="padding:5px 10px;color:var(--text-muted)">texto (TL, TM, 3C…)</td></tr>
+            <tr><td style="padding:5px 10px;color:var(--irder);font-family:var(--font-mono)">Posição sociológica</td><td style="padding:5px 10px;color:var(--irder-dim)">sociological_position</td><td style="padding:5px 10px;color:var(--text-muted)">texto/número</td></tr>
+            <tr style="background:rgba(255,255,255,0.02)"><td style="padding:5px 10px;color:var(--irder);font-family:var(--font-mono)">Característica</td><td style="padding:5px 10px;color:var(--irder-dim)">trait_1</td><td style="padding:5px 10px;color:var(--text-muted)">texto (B1, B2, PF…)</td></tr>
+            <tr><td style="padding:5px 10px;color:var(--irder);font-family:var(--font-mono)">Característica2</td><td style="padding:5px 10px;color:var(--irder-dim)">trait_2</td><td style="padding:5px 10px;color:var(--text-muted)">texto</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px">
+          <span style="color:var(--irder)">■</span> Campos exclusivos do protocolo IRDER &nbsp;·&nbsp; Separador detectado automaticamente (<code>;</code> ou <code>,</code>)
+        </div>
+      </div>
+    </details>
+
+    <!-- Observador padrão -->
+    <div class="form-group" style="margin-bottom:12px">
+      <label for="irder-observer">Observador padrão (opcional)</label>
+      <input id="irder-observer" type="text" placeholder="Usado quando a coluna não está na planilha"
+             autocomplete="name" autocapitalize="words">
+    </div>
+
+    <!-- Upload -->
+    <div class="form-group" style="margin-bottom:16px">
+      <label for="irder-file">Arquivo CSV</label>
+      <input id="irder-file" type="file" accept=".csv,.txt"
+             style="min-height:auto;padding:10px 14px;cursor:pointer">
+    </div>
+
+    <!-- Resultado inline -->
+    <div id="irder-result" style="display:none;margin-bottom:16px"></div>
+
+    <!-- Ações -->
+    <div style="display:flex;gap:10px">
+      <button id="irder-import-btn" class="btn btn-primary" style="flex:1;background:var(--irder);color:#0a1628"
+              onclick="submitIrderImport()">⬆ Importar registros</button>
+      <button class="btn btn-ghost" onclick="closeIrderModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div id="toast-container" class="toast-container"></div>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=20260703c"></script>
 </body>
 </html>

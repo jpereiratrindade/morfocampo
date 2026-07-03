@@ -68,6 +68,14 @@ CREATE TABLE IF NOT EXISTS tree_records (
     confidence_flag       TEXT NOT NULL DEFAULT 'ok',
     raw_input             TEXT NOT NULL DEFAULT '',
     audio_file            TEXT,
+    -- Campos específicos do protocolo IRDER
+    stem_height_m         REAL,
+    crown_insertion_m     REAL,
+    crown_density         INTEGER,
+    stem_form             TEXT NOT NULL DEFAULT '',
+    sociological_position TEXT NOT NULL DEFAULT '',
+    trait_1               TEXT NOT NULL DEFAULT '',
+    trait_2               TEXT NOT NULL DEFAULT '',
     created_at            TEXT DEFAULT (datetime('now','localtime')),
     updated_at            TEXT DEFAULT (datetime('now','localtime'))
 );
@@ -88,8 +96,30 @@ CREATE INDEX IF NOT EXISTS idx_tree_records_tree_id  ON tree_records(campaign_fk
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    """Inicializa schema se ainda não existir."""
+    """Inicializa schema se ainda não existir e migra colunas IRDER se necessário."""
     conn.executescript(SCHEMA)
+    conn.commit()
+    _migrate_irder_columns(conn)
+
+
+# Migração segura: adiciona colunas IRDER em bancos existentes
+_IRDER_COLUMNS = [
+    ("stem_height_m",         "REAL"),
+    ("crown_insertion_m",     "REAL"),
+    ("crown_density",         "INTEGER"),
+    ("stem_form",             "TEXT NOT NULL DEFAULT ''"),
+    ("sociological_position", "TEXT NOT NULL DEFAULT ''"),
+    ("trait_1",               "TEXT NOT NULL DEFAULT ''"),
+    ("trait_2",               "TEXT NOT NULL DEFAULT ''"),
+]
+
+
+def _migrate_irder_columns(conn: sqlite3.Connection) -> None:
+    """Adiciona colunas IRDER em bancos legados que não as têm ainda."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(tree_records)").fetchall()}
+    for col_name, col_type in _IRDER_COLUMNS:
+        if col_name not in existing:
+            conn.execute(f"ALTER TABLE tree_records ADD COLUMN {col_name} {col_type}")
     conn.commit()
 
 
@@ -161,8 +191,10 @@ def insert_record(conn: sqlite3.Connection, campaign_fk: int,
                crown_diameter_ns_m, crown_diameter_ew_m,
                condition, observer, date,
                latitude, longitude, notes,
-               source, confidence_flag, raw_input, audio_file)
-           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               source, confidence_flag, raw_input, audio_file,
+               stem_height_m, crown_insertion_m, crown_density,
+               stem_form, sociological_position, trait_1, trait_2)
+           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             campaign_fk,
             record.get("plot", ""),
@@ -187,6 +219,14 @@ def insert_record(conn: sqlite3.Connection, campaign_fk: int,
             record.get("confidence_flag", "ok"),
             record.get("raw_input", ""),
             audio_file,
+            # IRDER
+            record.get("stem_height_m"),
+            record.get("crown_insertion_m"),
+            record.get("crown_density"),
+            record.get("stem_form", ""),
+            record.get("sociological_position", ""),
+            record.get("trait_1", ""),
+            record.get("trait_2", ""),
         )
     )
     conn.commit()
@@ -200,7 +240,10 @@ def update_record(conn: sqlite3.Connection, record_id: int, patch: dict) -> bool
         "cap_cm", "dap_cm", "total_height_m", "crown_height_m",
         "crown_diameter_ns_m", "crown_diameter_ew_m",
         "condition", "observer", "date", "latitude", "longitude",
-        "notes", "confidence_flag", "raw_input"
+        "notes", "confidence_flag", "raw_input",
+        # IRDER
+        "stem_height_m", "crown_insertion_m", "crown_density",
+        "stem_form", "sociological_position", "trait_1", "trait_2",
     }
     fields = {k: v for k, v in patch.items() if k in allowed}
     if not fields:
@@ -280,6 +323,9 @@ CSV_COLUMNS = [
     "crown_diameter_ns_m", "crown_diameter_ew_m", "condition",
     "observer", "date", "latitude", "longitude", "notes",
     "source", "confidence_flag", "raw_input",
+    # IRDER
+    "stem_height_m", "crown_insertion_m", "crown_density",
+    "stem_form", "sociological_position", "trait_1", "trait_2",
 ]
 
 
@@ -308,6 +354,14 @@ def export_csv_lines(conn: sqlite3.Connection, campaign_fk: int) -> list[str]:
             r.get("source", "web_voice"),
             r.get("confidence_flag", "ok"),
             r.get("raw_input", ""),
+            # IRDER
+            str(r["stem_height_m"]) if r.get("stem_height_m") is not None else "",
+            str(r["crown_insertion_m"]) if r.get("crown_insertion_m") is not None else "",
+            str(r["crown_density"]) if r.get("crown_density") is not None else "",
+            r.get("stem_form", ""),
+            r.get("sociological_position", ""),
+            r.get("trait_1", ""),
+            r.get("trait_2", ""),
         ]
         # Escapar vírgulas em campos de texto
         escaped = []

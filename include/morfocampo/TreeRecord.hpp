@@ -52,6 +52,15 @@ struct TreeRecord {
     std::string latitude_text;
     std::string longitude_text;
 
+    // Campos específicos do protocolo IRDER (silvipastoril / inventário florestal)
+    std::string stem_height_m_text;        // HF — altura do fuste
+    std::string crown_insertion_m_text;    // HIC — altura de inserção da copa
+    std::string crown_density_text;        // Densicopa — densidade de copa (ex.: 1-5)
+    std::string stem_form;                 // Forma Fuste — categoria livre
+    std::string sociological_position;     // Posição sociológica
+    std::string trait_1;                   // Característica (coluna 1)
+    std::string trait_2;                   // Característica2 (coluna 2)
+
     std::optional<double> cap_cm;
     std::optional<double> dap_cm;
     std::optional<double> total_height_m;
@@ -60,6 +69,11 @@ struct TreeRecord {
     std::optional<double> crown_diameter_ew_m;
     std::optional<double> latitude;
     std::optional<double> longitude;
+
+    // Campos numéricos IRDER
+    std::optional<double> stem_height_m;
+    std::optional<double> crown_insertion_m;
+    std::optional<int>    crown_density;
 
     MeasurementSource cap_source{MeasurementSource::Missing};
     MeasurementSource dap_source{MeasurementSource::Missing};

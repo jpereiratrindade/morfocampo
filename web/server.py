@@ -288,6 +288,53 @@ async def validate_campaign(campaign_id: int):
     }
 
 
+# ---------------------------------------------------------------------------
+# Importação CSV IRDER
+# ---------------------------------------------------------------------------
+
+@app.post("/api/campaigns/{campaign_id}/import-irder", status_code=201)
+async def import_irder(
+    campaign_id: int,
+    file: UploadFile = File(...),
+    observer: str = Form(default=""),
+):
+    """
+    Recebe um CSV exportado do LibreOffice no formato IRDER e importa
+    todos os registros na campanha informada.
+    """
+    camp = db.get_campaign(_conn, campaign_id)
+    if not camp:
+        raise HTTPException(404, "Campanha não encontrada")
+
+    csv_bytes = await file.read()
+    filename  = file.filename or "irder_import.csv"
+
+    result = bridge.import_irder(
+        csv_bytes, filename,
+        project_id  = camp["project_id"],
+        campaign_id = camp["campaign_id"],
+        area        = camp["area"],
+        observer    = observer,
+    )
+
+    if not result["ok"]:
+        raise HTTPException(422, detail=result.get("error", "Falha na importação IRDER"))
+
+    inserted = 0
+    for rec in result["records"]:
+        try:
+            db.insert_record(_conn, campaign_id, rec)
+            inserted += 1
+        except Exception:
+            pass  # Ignora registros com falha individual
+
+    return {
+        "inserted": inserted,
+        "total_parsed": result["total"],
+        "issues": result["issues"],
+    }
+
+
 @app.get("/api/campaigns/{campaign_id}/validation/last")
 async def last_validation(campaign_id: int):
     run = db.last_validation(_conn, campaign_id)

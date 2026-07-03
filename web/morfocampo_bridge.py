@@ -179,12 +179,73 @@ class MorfocampoBridge:
                 val = val.strip()
                 if key in {"cap_cm", "dap_cm", "total_height_m",
                            "crown_height_m", "crown_diameter_ns_m",
-                           "crown_diameter_ew_m", "latitude", "longitude"}:
+                           "crown_diameter_ew_m", "latitude", "longitude",
+                           # Campos IRDER numéricos
+                           "stem_height_m", "crown_insertion_m"}:
                     try:
                         parsed[key] = float(val) if val else None
+                    except ValueError:
+                        parsed[key] = None
+                elif key == "crown_density":
+                    try:
+                        parsed[key] = int(val) if val else None
                     except ValueError:
                         parsed[key] = None
                 else:
                     parsed[key] = val
             rows.append(parsed)
         return rows
+
+    # ------------------------------------------------------------------
+    # import_irder — importa CSV do protocolo IRDER
+    # ------------------------------------------------------------------
+
+    def import_irder(self, csv_bytes: bytes, filename: str,
+                     project_id: str, campaign_id: str,
+                     area: str, observer: str = "") -> dict:
+        """
+        Recebe bytes de um CSV IRDER, chama morfocampo import-irder
+        e retorna dict com records (lista de dicts) + issues.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_file = Path(tmpdir) / filename
+            out_dir    = Path(tmpdir) / "out"
+            input_file.write_bytes(csv_bytes)
+
+            cmd = [
+                str(self.binary), "import-irder",
+                "--input",   str(input_file),
+                "--project", project_id,
+                "--campaign", campaign_id,
+                "--area",    area,
+                "--out",     str(out_dir),
+            ]
+            if observer:
+                cmd += ["--observer", observer]
+
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            csv_out = out_dir / "arvores_irder.csv"
+            if not csv_out.exists():
+                return {
+                    "ok": False,
+                    "error": result.stderr.strip() or "import-irder não gerou saída",
+                    "records": [],
+                    "issues": [],
+                }
+
+            records = self._read_csv(csv_out)
+
+            # Parseia avisos/erros do stderr
+            issues = [
+                line.strip()
+                for line in result.stderr.splitlines()
+                if line.strip()
+            ]
+
+            return {
+                "ok": True,
+                "records": records,
+                "total": len(records),
+                "issues": issues,
+            }

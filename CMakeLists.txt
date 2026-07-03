@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(morfocampo_core
     src/Csv.cpp
+    src/IrderImporter.cpp
     src/Normalizer.cpp
     src/Validator.cpp
     src/TranscriptParser.cpp

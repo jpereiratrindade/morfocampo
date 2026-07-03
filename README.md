@@ -1,373 +1,109 @@
-# morfocampo
+# Morfocampo 🌳
 
-`morfocampo` e um sistema de coleta de dados morfometricos de arvores para uso em campo, composto de:
+O `morfocampo` é um ecossistema completo para a coleta, processamento, transcrição por voz e validação de dados morfométricos e silvipastoris (protocolo IRDER) em campo. 
 
-- **Nucleo C++20** (`src/`, `include/`) — interpreta fala estruturada transcrita, normaliza, valida e exporta CSV/JSONL. Auditavel, testavel, sem dependencias externas.
-- **Interface web** (`web/`) — SPA mobile-first com gravacao de audio, transcricao local (Whisper), persistencia em SQLite3 e painel de administracao via browser.
+Criado com uma arquitetura híbrida de alto desempenho, o sistema combina um **núcleo determinístico em C++** com uma **aplicação web mobile-first** (Python/FastAPI + SQLite), permitindo coletas ágeis por comando de voz direto no celular, mesmo sem acesso à internet.
 
-O papel continua como base documental fisica de referencia. A interface digital complementa e acelera o registro sem substituir o protocolo em papel.
+---
 
-## Escopo atual
+## 🚀 Arquitetura e Componentes
 
-- Interpretar frases curtas de fala estruturada ja transcrita.
-- Preservar a frase original em `raw_input`; marcar origem em `source` e confianca em `confidence_flag`.
-- Gerar pacote de campanha com planilha digital CSV e listas de apoio.
-- Normalizar textos, condicoes e numeros com virgula ou ponto decimal.
-- Calcular DAP a partir de CAP, ou CAP a partir de DAP.
-- Validar regras explicitas de campos obrigatorios, faixas numericas, datas ISO e duplicidades.
-- Exportar CSV normalizado e JSONL.
-- Gerar relatorio Markdown de validacao.
-- **Interface web mobile**: gravar audio → transcrever → interpretar → confirmar → SQLite3.
-- **Registros exclusivos por observador** na coleta; validacao consolidada por campanha.
-- **Painel de administracao web**: visao de todos os observadores, flags de confianca, validar e exportar.
+1. **Núcleo C++20 (`src/`, `include/`)**
+   O coração do sistema. Responsável por interpretar a fala estruturada (Regex avançado e normalização utf-8), processar e validar arquivos CSV, e emitir relatórios Markdown. É um binário isolado, testável e sem dependências externas complexas, garantindo auditoria e velocidade.
 
-## Fora do escopo atual
+2. **Interface Web / App Mobile (`web/`)**
+   Uma SPA (Single Page Application) em Vanilla JS, HTML e CSS injetada por um servidor Python (FastAPI).
+   * **Gravador de áudio nativo:** O usuário grava a voz em campo direto no navegador do celular.
+   * **Transcrição Offline:** O servidor utiliza o modelo `faster-whisper` localmente para converter o áudio em texto (sem precisar de internet em campo).
+   * **Persistência Segura:** Banco de dados SQLite (`web/campo.db`) em tempo real.
+   * **Painel Admin:** Visão global de campanhas, observadores, e controle de exportações.
 
-Integracao nativa com ODK/Kobo, QField/QGIS, app mobile nativo, banco remoto, autenticacao multiusuario. A arquitetura deixa espaco para integrar `whisper.cpp`, Vosk, ODK, KoboToolbox, QField ou app mobile depois.
+3. **Integração IRDER**
+   O morfocampo não lida apenas com dendrometria básica. Ele possui suporte total e nativo aos descritores do **Protocolo IRDER** (silvipastoril): *Altura do Fuste (HF), Altura de Inserção da Copa (HIC), Densicopa, Forma do Fuste, Posição Sociológica, e Características 1/2*.
 
-## Fluxos de coleta
+---
 
-### Fluxo CLI (texto transcrito)
+## 📖 Tutorial de Uso Completo
 
-```text
-fala em campo -> transcricao manual -> morfocampo parse-voice -> CSV -> validate -> relatorio
-```
+### 1. Inicializando o Servidor Web
 
-### Fluxo Web (audio direto no celular)
+Para iniciar o sistema na sua máquina e deixá-lo pronto para acesso no celular, basta usar o script de automação na raiz do projeto:
 
-```text
-celular: microfone -> Web Speech API (online) -> texto
-                   -> blob audio -> servidor -> Whisper (offline)
-                                    -> morfocampo C++ -> interpretar -> confirmar -> SQLite3
-```
-
-A separacao nucleo C++ / interface e proposital: o nucleo fica auditavel e testavel independente de como os dados chegam.
-
-## Interface Web — rodar e administrar via browser
-
-### Iniciar (comando unico)
-
-```sh
+```bash
 ./run.sh
 ```
 
-O script compila o binario C++ se necessario, instala dependencias Python e exibe o IP da rede local para acesso no celular. Porta padrao: **8011**.
+O script cuidará de:
+1. Compilar o binário C++ (caso existam atualizações de código).
+2. Verificar dependências Python (`fastapi`, `faster-whisper`, etc.).
+3. Subir o servidor Uvicorn na porta **8011** (HTTPS).
 
-```sh
-./run.sh --rebuild   # forca recompilacao do binario C++
+**Acesso no Celular:**
+Conecte o celular na mesma rede Wi-Fi do notebook (ou use ancoragem USB). O terminal exibirá um endereço seguro (HTTPS) parecido com: `https://192.168.0.10:8011`.
+Abra esse link no navegador do celular. (*Nota: Aceite o aviso de segurança do navegador para "Prosseguir em modo inseguro", isso é necessário para o navegador liberar acesso ao microfone*).
+
+### 2. Fluxo em Campo (Coleta por Voz)
+
+O `morfocampo` foi desenhado para agilizar o trabalho do observador que está com fita métrica e prancheta na mão.
+
+1. Acesse o aplicativo e clique em **+ Campanha** para registrar a área de estudo.
+2. Na tela da Sessão, insira seu **Nome** (Observador) e a **Parcela**.
+3. Na aba **Coletar**, clique no botão central de Microfone (🎙) e dite as medidas da árvore pausadamente.
+
+**Protocolo de Fala (Exemplo Completo):**
+> *"arvore A-023 espécie Butia odorata latitude -30,5 longitude -54,2 CAP 42,5 altura total 4,8 altura da copa 2,2 copa ns 3,5 copa lo 3,1 condição viva HF 2,5 HIC 1,5 densicopa 4 forma TL posição dossel característica PF característica 2 seca"*
+
+*Dicas para o comando de voz:*
+* Use números normais e vírgulas: diga "quarenta e dois vírgula cinco", não fale unidades por extenso.
+* O comando `corrigir` altera um registro pré-existente (ex: `"corrigir arvore A-023 CAP 43,0"`).
+* Os descritores de copa tradicionais (`altura da copa`, `copa ns`, `copa lo`) convivem em harmonia com os descritores do IRDER. Todos são opcionais e só aparecem se forem ditados.
+
+### 3. Integração e Importação de Planilhas Legadas
+
+Se você tem planilhas antigas do protocolo IRDER (exportadas em CSV pelo LibreOffice), o morfocampo pode ingeri-las nativamente:
+
+1. Acesse o botão **⚙ Admin** ao lado da sua campanha.
+2. Clique no botão verde **🌳 IRDER**.
+3. O modal exibirá os campos esperados (separador `;` ou `,`). Faça o upload do arquivo e o sistema migrará os dados instantaneamente para o SQLite.
+
+### 4. Validação e Exportação
+
+Ao final do dia de trabalho:
+1. Vá na aba **✓ Validar**.
+2. Clique em **▶ Validar campanha**.
+3. O núcleo C++ varrerá todos os registros cruzando informações de todos os observadores para checar valores discrepantes, árvores não identificadas, e DAPs fora da faixa aceitável.
+4. Clique em **⬇ Exportar** para baixar um pacote `.zip` contendo os CSVs consolidados e o Relatório em Markdown, ideais para importar no QGIS ou R.
+
+---
+
+## 🛠 Comandos de Terminal (Core C++ / CLI)
+
+O morfocampo ainda pode ser usado de forma "pura", diretamente pelo terminal, sem o servidor Web. O binário ficará em `build/morfocampo`.
+
+**Normalizar e Validar um arquivo CSV avulso:**
+```bash
+./build/morfocampo validate --input sua_planilha.csv --out pasta_saida --max-cap 600
 ```
 
-### Iniciar manualmente (alternativa)
-
-```sh
-cd web
-pip install -r requirements.txt
-
-python server.py \
-  --db campo.db \
-  --bin ../build/morfocampo \
-  --host 0.0.0.0 \
-  --port 8011
+**Interpretar arquivo de transcrições em lote (lote txt de vozes):**
+```bash
+./build/morfocampo parse-voice --input audio_transcrito.txt --out resultado_interpretado.csv
 ```
 
-### Acessar no celular
-
-O celular deve estar na mesma rede WiFi do notebook (ou USB tethering):
-
-```sh
-# Descobrir o IP do notebook:
-ip addr show | grep "inet " | grep -v 127.0.0.1
-
-# Abrir no celular:
-http://<IP-do-notebook>:8000
+**Importar protocolo IRDER em lote pelo terminal:**
+```bash
+./build/morfocampo import-irder --input planilha_irder.csv --out resultado_importado.csv
 ```
 
-### Telas disponíveis
+---
 
-| Tela | Acesso | Função |
-|---|---|---|
-| **Home** | `/` raiz | Lista campanhas; criar nova campanha |
-| **Coleta** | botao Coletar | Gravar audio, interpretar, confirmar — registros exclusivos por observador |
-| **Registros** | aba Registros | Lista e corrige registros do observador atual |
-| **Validar** | aba Validar | Valida todos os observadores da campanha; exporta ZIP |
-| **⚙ Admin** | botao Admin | Visao consolidada: todos os observadores, flags, validar, exportar, excluir |
+## 🔧 Estrutura de Diretórios
 
-### Painel de administracao (`⚙ Admin`)
+* `src/` e `include/`: Código-fonte C++20 puro. Classes de negócio, Validador, Parser de Voz e gerador de Relatório.
+* `web/`: Aplicação Python FastAPI (`server.py`), Banco SQLite (`db.py`), Bridge C++ (`morfocampo_bridge.py`), e frontend em HTML/JS (`static/`).
+* `build/`: Local do binário C++ após execução do `run.sh`.
+* `tests/`: Bateria de testes unitários do núcleo C++.
 
-Acessivel na tela inicial ao lado de cada campanha. Mostra:
+## 💡 Filosofia de Uso
 
-- Total de registros e distribuicao de flags (OK / Revisar / Incompleto / Erro)
-- Registros agrupados por observador (expandiveis)
-- Ultima validacao (data, erros, avisos)
-- Botoes: **Validar campanha** (todos os observadores) e **Exportar ZIP** (CSV + relatorio)
-
-### Transcrição de audio
-
-| Situacao | Motor | Requisito |
-|---|---|---|
-| Com internet | Web Speech API (browser, tempo real) | Nenhum |
-| Sem internet | faster-whisper no servidor | `pip install faster-whisper` |
-| Sem microfone | Digitacao manual na tela | — |
-
-Para transcrição offline (campo remoto sem internet):
-
-```sh
-pip install faster-whisper
-# Modelo 'small' (~460 MB) baixado automaticamente na primeira transcricao
-```
-
-### Documentação interativa da API
-
-```
-http://localhost:8000/docs
-```
-
-
-## Compilar e testar
-
-```sh
-cmake -S . -B build
-cmake --build build
-ctest --test-dir build --output-on-failure
-```
-
-## Uso
-
-Gerar exemplos:
-
-```sh
-./build/morfocampo init --dir examples
-```
-
-Gerar uma planilha digital de campanha:
-
-```sh
-./build/morfocampo init-campaign \
-  --dir campo_C01 \
-  --project MORFO_CAMPO_2026 \
-  --campaign C01 \
-  --area "Butiazal Sao Miguel" \
-  --plots P01,P02,P03 \
-  --observers Pedro,Ana,Carla \
-  --rows 50
-```
-
-Esse comando gera:
-
-- `campo_C01/coleta_arvores.csv`
-- `campo_C01/protocolo_campo.md`
-- `campo_C01/README_PLANILHA.md`
-- `campo_C01/listas/condicoes.csv`
-- `campo_C01/listas/parcelas.csv`
-- `campo_C01/listas/observadores.csv`
-
-`coleta_arvores.csv` e a planilha digital simples para abrir no LibreOffice, Excel, Google Sheets, OnlyOffice ou editor CSV em celular/tablet. Ela nao usa macros. A validacao oficial continua sendo o comando `validate`.
-
-Validar CSV:
-
-```sh
-./build/morfocampo validate --input examples/template_arvores.csv --out out
-```
-
-Converter fala estruturada ja transcrita:
-
-```sh
-./build/morfocampo parse-voice --input examples/fala_estruturada.txt --out out/dados_por_voz.csv
-./build/morfocampo validate --input out/dados_por_voz.csv --out out
-```
-
-Validar com limites de faixa configuraveis (avisos, nao erros):
-
-```sh
-./build/morfocampo validate \
-  --input out/dados_por_voz.csv \
-  --out out \
-  --max-cap 600 \
-  --max-dap 200 \
-  --max-height 30 \
-  --max-crown 20
-```
-
-Sessao interativa simples:
-
-```sh
-./build/morfocampo session \
-  --project MORFO_2026 \
-  --campaign C01 \
-  --plot P01 \
-  --observer Pedro \
-  --date 2026-07-01 \
-  --out sessao_voz.csv \
-  --max-cap 600 \
-  --max-height 30
-```
-
-Na sessao, digite frases como:
-
-```text
-arvore A-023 CAP 42,5 altura total 4,8 condicao viva
-```
-
-Para corrigir um registro ja confirmado na mesma sessao, prefixe com `corrigir`:
-
-```text
-corrigir arvore A-023 CAP 43,0
-```
-
-O sistema localiza o registro com o mesmo `tree_id` e o substitui. Se a arvore nao foi registrada ainda na sessao, adiciona como novo registro com aviso.
-
-Saidas geradas:
-
-- `out/arvores_normalizadas.csv`
-- `out/arvores_normalizadas.jsonl`
-- `out/relatorio_validacao.md` (inclui secao **Registros para revisar**)
-
-Converter transcricoes controladas:
-
-```sh
-./build/morfocampo parse-transcript --input examples/transcricoes_exemplo.txt --out out/transcricao_convertida.csv
-```
-
-Ajuda:
-
-```sh
-./build/morfocampo help
-```
-
-## Formato do CSV
-
-Colunas esperadas:
-
-```text
-project_id,campaign_id,area,plot,transect,tree_id,species,cap_cm,dap_cm,total_height_m,crown_height_m,crown_diameter_ns_m,crown_diameter_ew_m,condition,observer,date,latitude,longitude,notes,source,confidence_flag,raw_input
-```
-
-Campos obrigatorios:
-
-- `project_id`
-- `campaign_id`
-- `plot`
-- `tree_id`
-- `observer`
-- `date`
-
-Pelo menos um entre `cap_cm` e `dap_cm` deve estar preenchido. Numeros podem usar virgula decimal (`42,5`) ou ponto decimal (`42.5`). A data deve estar em ISO `YYYY-MM-DD`.
-
-Condicoes aceitas:
-
-- `viva`
-- `morta`
-- `rebrote`
-- `dano`
-- `desconhecida`
-
-Duplicidade e detectada pela chave:
-
-```text
-project_id + campaign_id + plot + tree_id
-```
-
-## JSONL
-
-O JSONL inclui `cap_source` e `dap_source` com os valores:
-
-- `observed`: valor informado no CSV ou na transcricao.
-- `derived`: valor calculado pelo `morfocampo`.
-- `missing`: valor ausente.
-
-## Parser de transcricoes
-
-O comando principal para fala estruturada e `parse-voice`. Ele e deterministico, usa apenas regex e depende de fala padronizada. O comando antigo `parse-transcript` permanece como alias compativel.
-
-Exemplo:
-
-```text
-arvore A-023; especie Butia odorata; CAP 42,5 cm; altura total 4,8 m; altura da copa 2,1 m; copa norte-sul 3,4 m; copa leste-oeste 2,9 m; condicao viva; observador Pedro
-```
-
-Sinonimos reconhecidos incluem `CAP`, `circunferencia`, `DAP`, `diametro`, `altura`, `altura total`, `copa ns`, `copa norte-sul`, `copa ew`, `copa leste-oeste` e `copa leste oeste`.
-
-O CSV gerado deve passar pelo fluxo principal de validacao.
-
-## Limitacoes do parser de voz
-
-O parser e deterministico e usa regex. Ele funciona bem para fala estruturada e padronizada, mas **falha silenciosamente** em varios padroes naturais da fala. Treine os observadores para usar o protocolo abaixo.
-
-### O que o parser reconhece
-
-```text
-arvore A-023 CAP 42,5 altura total 4,8 condicao viva
-arvore A-023; especie Butia odorata; CAP 42,5 cm; condicao viva
-nova arvore A-023 DAP 13,5
-corrigir arvore A-023 CAP 43,0
-```
-
-- Numeros com virgula (`42,5`) ou ponto decimal (`42.5`).
-- Palavras-chave em qualquer ordem, separadas por espaco ou ponto-e-virgula.
-- Prefixo `nova`, `novo`, `salvar` (ignorados).
-- Prefixo `corrigir` (substitui registro com mesmo `tree_id` na sessao).
-
-### O que o parser NAO reconhece (limitacoes conhecidas)
-
-```text
-# Numero por extenso — NAO funciona
-a arvore tem quarenta e dois de CAP
-
-# Ordem das palavras sem palavra-chave — NAO funciona
-42,5 e a circunferencia da arvore 023
-
-# Fracao oral — NAO funciona
-CAP quarenta e dois e meio
-
-# Identificador com espaco — NAO funciona
-arvore A 023 (use A-023 ou A023)
-
-# Condicao com acento nao mapeado — cuidado
-condição abatida (nao esta na lista controlada)
-```
-
-### Protocolo de fala recomendado para treinamento de observadores
-
-1. Sempre identifique a arvore primeiro: `arvore [ID]`
-2. Informe CAP ou DAP com numero: `CAP 42,5` ou `DAP 13,4`
-3. Use virgula ou ponto decimal, nunca por extenso.
-4. Informe condicao com uma das palavras controladas: `viva`, `morta`, `rebrote`, `dano`, `desconhecida`.
-5. Para corrigir: `corrigir arvore [ID] [campo] [valor]`
-6. Fale devagar e com pausas entre os campos.
-
-## Fluxo de campo recomendado
-
-1. Antes da saida, gere a campanha com `init-campaign`.
-2. Abra `coleta_arvores.csv` em uma planilha digital.
-3. Use as listas em `listas/` como apoio para menus suspensos quando o aplicativo permitir.
-4. Preencha os dados em campo.
-5. No intervalo ou fim do dia, rode `validate`.
-6. Corrija erros ainda no campo quando possivel.
-
-Exemplo:
-
-```sh
-./build/morfocampo validate --input campo_C01/coleta_arvores.csv --out campo_C01/validacao
-```
-
-## Estrutura
-
-```text
-CMakeLists.txt
-include/morfocampo/
-src/
-tests/
-examples/
-```
-
-## Proximos passos possiveis
-
-- Integracao com ODK/Kobo via XLSForm.
-- Integracao com QField/QGIS.
-- Persistencia em SQLite.
-- Interface grafica.
-- App mobile.
-- Leitura direta de audio.
-- Transcricao automatica com Whisper ou outra ferramenta.
-- Integracao futura com SisTer/SAMA-D.
-- Geracao de protocolos de campo versionados.
+O aplicativo digital **complementa e acelera o registro, mas não substitui a necessidade do papel como backup de segurança ou as marcações no terreno**. Seu maior benefício é o *Double-Entry* instantâneo: você coleta falando, o celular registra visualmente e o banco normaliza e exporta, minimizando semanas de digitação em laboratório.

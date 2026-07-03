@@ -17,3 +17,19 @@ web/**/__pycache__/
 *.pyc
 .venv/
 venv/
+
+# Build and Temp
+build/
+a.out
+test_parse.cpp
+server.log
+out*/
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+.xdp-*
+
+# Certs
+web/*.pem

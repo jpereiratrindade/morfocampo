@@ -118,6 +118,14 @@ TreeRecord normalizeTextFields(TreeRecord record) {
     record.crown_diameter_ew_m_text = trim(std::move(record.crown_diameter_ew_m_text));
     record.latitude_text = trim(std::move(record.latitude_text));
     record.longitude_text = trim(std::move(record.longitude_text));
+    // IRDER
+    record.stem_height_m_text     = trim(std::move(record.stem_height_m_text));
+    record.crown_insertion_m_text = trim(std::move(record.crown_insertion_m_text));
+    record.crown_density_text     = trim(std::move(record.crown_density_text));
+    record.stem_form              = normalizeSpaces(std::move(record.stem_form));
+    record.sociological_position  = normalizeSpaces(std::move(record.sociological_position));
+    record.trait_1                = normalizeSpaces(std::move(record.trait_1));
+    record.trait_2                = normalizeSpaces(std::move(record.trait_2));
     return record;
 }
 
@@ -136,6 +144,18 @@ ProcessingResult normalizeRecords(const std::vector<TreeRecord>& records) {
         parseNumberField(input, result.issues, "crown_diameter_ew_m", output.crown_diameter_ew_m_text, output.crown_diameter_ew_m);
         parseNumberField(input, result.issues, "latitude", output.latitude_text, output.latitude);
         parseNumberField(input, result.issues, "longitude", output.longitude_text, output.longitude);
+        // Campos IRDER
+        parseNumberField(input, result.issues, "stem_height_m", output.stem_height_m_text, output.stem_height_m);
+        parseNumberField(input, result.issues, "crown_insertion_m", output.crown_insertion_m_text, output.crown_insertion_m);
+        if (!output.crown_density_text.empty()) {
+            const auto parsed = parseOptionalDecimal(output.crown_density_text);
+            if (parsed.ok && parsed.value.has_value()) {
+                output.crown_density = static_cast<int>(std::round(*parsed.value));
+            } else if (parsed.had_text) {
+                result.issues.push_back({Severity::Warning, input.source_line,
+                    "crown_density", "valor nao numerico: '" + output.crown_density_text + "'"});
+            }
+        }
 
         if (output.cap_cm.has_value()) {
             output.cap_source = MeasurementSource::Observed;

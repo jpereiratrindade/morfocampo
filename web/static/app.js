@@ -281,12 +281,27 @@ async function openAdmin(campaignId) {
             const flag = r.confidence_flag || "ok";
             const cap = r.cap_cm ? `CAP ${r.cap_cm.toFixed(1)}` : "";
             const dap = r.dap_cm ? `DAP ${r.dap_cm.toFixed(1)}` : "";
+            // Pills IRDER
+            const irderPills = [
+              r.stem_height_m        != null ? `HF ${r.stem_height_m}m` : null,
+              r.crown_insertion_m    != null ? `HIC ${r.crown_insertion_m}m` : null,
+              r.crown_density        != null ? `DC ${r.crown_density}` : null,
+              r.stem_form                    ? r.stem_form : null,
+              r.sociological_position        ? `PS${r.sociological_position}` : null,
+              r.trait_1                      ? r.trait_1 : null,
+              r.trait_2                      ? r.trait_2 : null,
+            ].filter(Boolean);
+            const irderRow = irderPills.length ? `
+              <div class="irder-pills" style="margin-top:4px">${irderPills.map(p =>
+                `<span class="irder-pill">${p}</span>`).join("")}
+              </div>` : "";
             return `
               <div class="record-item ${flag === 'erro' ? 'has-error' : flag !== 'ok' ? 'has-warn' : 'ok'}" style="margin-bottom:6px">
                 <div class="record-id">${r.tree_id || "—"}</div>
                 <div class="record-info">
                   <div class="record-main">${[cap,dap].filter(Boolean).join(" · ") || "—"} ${r.condition ? "· " + r.condition : ""}</div>
-                  <div class="record-sub">${r.plot} · ${r.species || "sp. ?"}  <span class="confidence-badge ${flag}" style="font-size:0.65rem;padding:2px 6px;margin-left:4px">${flagEmoji(flag)} ${flag}</span></div>
+                  <div class="record-sub">${r.plot} · ${r.species || "sp. ?"} <span class="confidence-badge ${flag}" style="font-size:0.65rem;padding:2px 6px;margin-left:4px">${flagEmoji(flag)} ${flag}</span></div>
+                  ${irderRow}
                 </div>
                 <button class="btn btn-danger btn-sm btn-icon" title="Excluir" onclick="adminDeleteRecord(${r.id})">🗑</button>
               </div>`;
@@ -664,6 +679,32 @@ function renderParsedFields(rec) {
     `<div style="font-size:0.8rem;color:var(--amber);margin-top:6px">⚠ ${w}</div>`
   ).join("");
 
+  // Campos IRDER — só renderiza se houver algum preenchido
+  const irderFields = [
+    { key: "stem_height_m",        label: "Alt. Fuste HF (m)" },
+    { key: "crown_insertion_m",    label: "Alt. Inserção Copa HIC (m)" },
+    { key: "crown_density",        label: "Densicopa" },
+    { key: "stem_form",            label: "Forma Fuste" },
+    { key: "sociological_position",label: "Posição Sociológica" },
+    { key: "trait_1",              label: "Característica 1" },
+    { key: "trait_2",              label: "Característica 2" },
+  ];
+  const irderCells = irderFields
+    .filter(f => { const v = rec[f.key]; return v !== null && v !== undefined && v !== ""; })
+    .map(f => `
+      <div class="field-item irder">
+        <div class="field-label">${f.label}</div>
+        <div class="field-value">${rec[f.key]}</div>
+      </div>`).join("");
+
+  const irderSection = irderCells ? `
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:var(--irder);user-select:none;padding:4px 0">
+        🌳 Protocolo IRDER
+      </summary>
+      <div class="fields-grid" style="margin-top:8px">${irderCells}</div>
+    </details>` : "";
+
   $("parsed-fields").innerHTML = `
     <div class="card">
       <div class="card-header">
@@ -672,6 +713,7 @@ function renderParsedFields(rec) {
       </div>
       <div class="fields-grid">${cells}</div>
       ${warnings}
+      ${irderSection}
     </div>`;
 
   $("confirm-actions").classList.remove("hidden");
@@ -772,6 +814,23 @@ function renderRecordList(records) {
     const cap  = r.cap_cm ? `CAP ${r.cap_cm.toFixed(1)} cm` : "";
     const dap  = r.dap_cm ? `DAP ${r.dap_cm.toFixed(1)} cm` : "";
     const meas = [cap, dap].filter(Boolean).join(" · ");
+
+    // Campos IRDER adicionais (só mostra os preenchidos)
+    const irderPills = [
+      r.stem_height_m        != null ? `HF ${r.stem_height_m} m` : null,
+      r.crown_insertion_m    != null ? `HIC ${r.crown_insertion_m} m` : null,
+      r.crown_density        != null ? `Densicopa ${r.crown_density}` : null,
+      r.stem_form                    ? `${r.stem_form}` : null,
+      r.sociological_position        ? `PS ${r.sociological_position}` : null,
+      r.trait_1                      ? r.trait_1 : null,
+      r.trait_2                      ? r.trait_2 : null,
+    ].filter(Boolean);
+
+    const irderRow = irderPills.length ? `
+      <div class="irder-pills">${irderPills.map(p =>
+        `<span class="irder-pill">${p}</span>`).join("")}
+      </div>` : "";
+
     return `
       <div class="record-item ${cls}" id="rec-${r.id}">
         <div class="record-id">${r.tree_id || "—"}</div>
@@ -782,6 +841,7 @@ function renderRecordList(records) {
               ${flagEmoji(flag)} ${flag}
             </span>
           </div>
+          ${irderRow}
         </div>
         <div class="record-actions">
           <button class="btn btn-ghost btn-sm btn-icon" title="Corrigir"
@@ -881,6 +941,89 @@ async function exportCampaign() {
   a.href = url;
   a.download = "";
   a.click();
+}
+
+// ─── Modal IRDER ──────────────────────────────────────────────────────────────
+
+function openIrderModal() {
+  const obs = State.session.observer || localStorage.getItem("morfocampo_global_observer") || "";
+  $("irder-observer").value = obs;
+  $("irder-file").value = "";
+  $("irder-result").style.display = "none";
+  $("irder-result").innerHTML = "";
+  $("irder-import-btn").disabled = false;
+  $("irder-import-btn").textContent = "⬆ Importar registros";
+  $("irder-modal").style.display = "block";
+}
+
+function closeIrderModal() {
+  $("irder-modal").style.display = "none";
+}
+
+async function submitIrderImport() {
+  const fileInput = $("irder-file");
+  if (!fileInput.files.length) {
+    toast("Selecione um arquivo CSV", "warn"); return;
+  }
+  if (!State.currentCampaign) {
+    toast("Nenhuma campanha selecionada", "warn"); return;
+  }
+
+  const btn = $("irder-import-btn");
+  btn.disabled = true;
+  btn.textContent = "Importando…";
+
+  const form = new FormData();
+  form.append("file", fileInput.files[0]);
+  form.append("observer", $("irder-observer").value.trim());
+
+  try {
+    const res = await fetch(
+      `/api/campaigns/${State.currentCampaign.id}/import-irder`,
+      { method: "POST", body: form }
+    );
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || "Erro na importação");
+    }
+
+    // Exibe resultado inline
+    const issueHtml = data.issues.length
+      ? `<div style="margin-top:10px">
+          ${data.issues.map(i => `<div style="font-size:0.78rem;color:var(--amber);margin-top:4px">⚠ ${i}</div>`).join("")}
+         </div>` : "";
+
+    $("irder-result").innerHTML = `
+      <div style="background:var(--irder-bg);border:1px solid var(--irder-border);border-radius:var(--radius-sm);padding:14px">
+        <div style="font-size:1rem;font-weight:700;color:var(--irder)">✓ ${data.inserted} registro(s) importado(s)</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px">
+          Total parseado: ${data.total_parsed} · Avisos: ${data.issues.length}
+        </div>
+        ${issueHtml}
+      </div>`;
+    $("irder-result").style.display = "block";
+
+    toast(`IRDER: ${data.inserted} registro(s) importado(s)`, "success", 5000);
+    btn.textContent = "✓ Concluído";
+
+    // Recarrega a tela admin para mostrar os novos registros
+    setTimeout(() => {
+      closeIrderModal();
+      openAdmin(State.currentCampaign.id);
+    }, 2000);
+
+  } catch (e) {
+    $("irder-result").innerHTML = `
+      <div style="background:rgba(239,68,68,0.08);border:1px solid var(--red-dim);border-radius:var(--radius-sm);padding:14px">
+        <div style="color:var(--red);font-weight:600">✗ Falha na importação</div>
+        <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px">${e.message}</div>
+      </div>`;
+    $("irder-result").style.display = "block";
+    toast("Importação falhou: " + e.message, "error");
+    btn.disabled = false;
+    btn.textContent = "⬆ Importar registros";
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

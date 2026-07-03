@@ -90,7 +90,7 @@ void writeCsvRow(std::ostream& out, const std::vector<std::string>& values) {
 }
 
 std::vector<std::string> recordToRow(const TreeRecord& record) {
-    return {
+    auto row = std::vector<std::string>{
         record.project_id,
         record.campaign_id,
         record.area,
@@ -112,8 +112,17 @@ std::vector<std::string> recordToRow(const TreeRecord& record) {
         record.notes,
         record.source,
         record.confidence_flag,
-        record.raw_input
+        record.raw_input,
+        // IRDER
+        formatNumber(record.stem_height_m),
+        formatNumber(record.crown_insertion_m),
+        record.crown_density.has_value() ? std::to_string(*record.crown_density) : std::string{},
+        record.stem_form,
+        record.sociological_position,
+        record.trait_1,
+        record.trait_2
     };
+    return row;
 }
 
 TreeRecord rowToRecord(const std::vector<std::string>& headers,
@@ -148,6 +157,14 @@ TreeRecord rowToRecord(const std::vector<std::string>& headers,
     record.source = values["source"].empty() ? "csv" : values["source"];
     record.confidence_flag = values["confidence_flag"].empty() ? "ok" : values["confidence_flag"];
     record.raw_input = values["raw_input"];
+    // Campos IRDER
+    record.stem_height_m_text     = values["stem_height_m"];
+    record.crown_insertion_m_text = values["crown_insertion_m"];
+    record.crown_density_text     = values["crown_density"];
+    record.stem_form              = values["stem_form"];
+    record.sociological_position  = values["sociological_position"];
+    record.trait_1                = values["trait_1"];
+    record.trait_2                = values["trait_2"];
     return record;
 }
 
@@ -182,7 +199,15 @@ std::vector<std::string> defaultTreeHeaders() {
         "notes",
         "source",
         "confidence_flag",
-        "raw_input"
+        "raw_input",
+        // Campos IRDER
+        "stem_height_m",
+        "crown_insertion_m",
+        "crown_density",
+        "stem_form",
+        "sociological_position",
+        "trait_1",
+        "trait_2"
     };
 }
 
@@ -317,6 +342,17 @@ void writeTreesJsonl(const std::filesystem::path& output,
             << "\"source\":\"" << jsonEscape(record.source) << "\","
             << "\"confidence_flag\":\"" << jsonEscape(record.confidence_flag) << "\","
             << "\"raw_input\":\"" << jsonEscape(record.raw_input) << "\""
+            // Campos IRDER
+            << ",\"stem_height_m\":";
+        if (record.stem_height_m.has_value()) { out << formatNumber(record.stem_height_m); } else { out << "null"; }
+        out << ",\"crown_insertion_m\":";
+        if (record.crown_insertion_m.has_value()) { out << formatNumber(record.crown_insertion_m); } else { out << "null"; }
+        out << ",\"crown_density\":";
+        if (record.crown_density.has_value()) { out << *record.crown_density; } else { out << "null"; }
+        out << ",\"stem_form\":\"" << jsonEscape(record.stem_form) << "\""
+            << ",\"sociological_position\":\"" << jsonEscape(record.sociological_position) << "\""
+            << ",\"trait_1\":\"" << jsonEscape(record.trait_1) << "\""
+            << ",\"trait_2\":\"" << jsonEscape(record.trait_2) << "\""
             << "}\n";
     }
 }
