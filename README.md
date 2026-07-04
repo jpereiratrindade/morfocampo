@@ -30,7 +30,7 @@ Para a interface web:
 - Dependências listadas em `web/requirements.txt`
 - `openssl`, quando for usar HTTPS local pelo `run.sh`
 
-A transcrição offline com `faster-whisper` é opcional. Quando usada, o modelo é baixado localmente na primeira execução.
+A transcrição offline usa `faster-whisper`. O modelo padrão é `small` e pode ser alterado com `MORFOCAMPO_WHISPER_MODEL`. Em instalação MorfoNode, o instalador baixa o modelo antes do uso em campo.
 
 ## Build
 

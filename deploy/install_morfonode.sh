@@ -19,6 +19,8 @@ WIFI_IFACE="${MORFOCAMPO_WIFI_IFACE:-}"
 AUTH_TOKEN="${MORFOCAMPO_AUTH_TOKEN:-}"
 HOSTNAME_TARGET="${MORFOCAMPO_HOSTNAME:-morfocampo}"
 PORT="${MORFOCAMPO_PORT:-8011}"
+WHISPER_MODEL="${MORFOCAMPO_WHISPER_MODEL:-small}"
+SKIP_WHISPER_DOWNLOAD="${MORFOCAMPO_SKIP_WHISPER_DOWNLOAD:-0}"
 LOG_FILE="${STATE_DIR}/install.log"
 INFO_FILE="${STATE_DIR}/morfonode-info.txt"
 
@@ -134,6 +136,23 @@ build_app() {
   cmake --build "${INSTALL_DIR}/build" --parallel
 }
 
+preload_whisper_model() {
+  if [[ "${SKIP_WHISPER_DOWNLOAD}" == "1" ]]; then
+    warn "download antecipado do modelo Whisper foi pulado"
+    return
+  fi
+
+  echo "==> Baixando modelo faster-whisper (${WHISPER_MODEL})"
+  MORFOCAMPO_WHISPER_MODEL="${WHISPER_MODEL}" "${VENV_DIR}/bin/python" - <<'PY'
+import os
+from faster_whisper import WhisperModel
+
+model_name = os.environ.get("MORFOCAMPO_WHISPER_MODEL", "small")
+WhisperModel(model_name, device="cpu", compute_type="int8")
+print(f"Modelo faster-whisper pronto: {model_name}")
+PY
+}
+
 generate_cert() {
   echo "==> Gerando certificado local"
   if [[ ! -f "${STATE_DIR}/certs/cert.pem" || ! -f "${STATE_DIR}/certs/key.pem" ]]; then
@@ -149,9 +168,10 @@ generate_cert() {
 install_config() {
   echo "==> Instalando configuração"
   install -m 0644 "${INSTALL_DIR}/deploy/morfonode.env.example" "${CONFIG_DIR}/morfonode.env"
-  grep -vE '^(MORFOCAMPO_AUTH_TOKEN|MORFOCAMPO_PORT)=' "${CONFIG_DIR}/morfonode.env" > "${CONFIG_DIR}/morfonode.env.tmp"
+  grep -vE '^(MORFOCAMPO_AUTH_TOKEN|MORFOCAMPO_PORT|MORFOCAMPO_WHISPER_MODEL)=' "${CONFIG_DIR}/morfonode.env" > "${CONFIG_DIR}/morfonode.env.tmp"
   {
     printf 'MORFOCAMPO_PORT=%s\n' "${PORT}"
+    printf 'MORFOCAMPO_WHISPER_MODEL=%s\n' "${WHISPER_MODEL}"
     printf 'MORFOCAMPO_AUTH_TOKEN=%s\n' "${AUTH_TOKEN}"
   } >> "${CONFIG_DIR}/morfonode.env.tmp"
   mv "${CONFIG_DIR}/morfonode.env.tmp" "${CONFIG_DIR}/morfonode.env"
@@ -210,6 +230,7 @@ Senha Wi-Fi: ${WIFI_PASSWORD}
 URL principal: https://morfocampo.local:${PORT}
 URL por IP: https://${ip_addr:-IP_DO_RASPBERRY}:${PORT}
 Token local: ${AUTH_TOKEN}
+Modelo Whisper: ${WHISPER_MODEL}
 
 Serviço:
   sudo systemctl status morfocampo
@@ -231,6 +252,7 @@ install_dependencies
 create_user_and_dirs
 install_code
 build_app
+preload_whisper_model
 generate_cert
 install_config
 configure_hostname

@@ -11,13 +11,14 @@ de instalação — o sistema continua funcional via Web Speech API.
 """
 
 import io
+import os
 import tempfile
 from pathlib import Path
 from typing import Optional
 
 _whisper_available = False
 _whisper_model = None
-_whisper_model_size = "small"
+_whisper_model_size = os.environ.get("MORFOCAMPO_WHISPER_MODEL", "small")
 
 try:
     from faster_whisper import WhisperModel  # type: ignore
@@ -48,7 +49,7 @@ def _load_model() -> Optional["WhisperModel"]:  # type: ignore
     if not _whisper_available:
         return None
     if _whisper_model is None:
-        # Carrega na primeira chamada; baixa o modelo se necessário (~460 MB para 'small')
+        # Carrega na primeira chamada; baixa o modelo se necessário.
         _whisper_model = WhisperModel(
             _whisper_model_size,
             device="cpu",

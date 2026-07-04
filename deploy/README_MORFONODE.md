@@ -40,6 +40,7 @@ O instalador faz:
 - configura hostname `morfocampo`;
 - cria hotspot Wi-Fi persistente `MORFOCAMPO` via NetworkManager;
 - gera um token local para proteger as rotas `/api`;
+- instala `faster-whisper` e baixa o modelo de transcrição;
 - salva um resumo em `/var/lib/morfocampo/morfonode-info.txt`;
 - habilita o serviço na inicialização.
 
@@ -53,6 +54,8 @@ Variáveis úteis:
 | `MORFOCAMPO_AUTH_TOKEN` | gerado | Token local da API |
 | `MORFOCAMPO_HOSTNAME` | `morfocampo` | Hostname publicado como `morfocampo.local` |
 | `MORFOCAMPO_PORT` | `8011` | Porta HTTPS |
+| `MORFOCAMPO_WHISPER_MODEL` | `small` | Modelo de transcrição offline |
+| `MORFOCAMPO_SKIP_WHISPER_DOWNLOAD` | `0` | Use `1` para não baixar o modelo na instalação |
 
 Exemplo com senha e token definidos:
 

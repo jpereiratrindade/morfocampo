@@ -25,9 +25,9 @@ cmake -S .. -B ../build && cmake --build ../build
 # Dependências Python:
 pip install -r requirements.txt
 
-# Transcrição offline (recomendado para campo sem internet):
-pip install faster-whisper
-# O modelo 'small' (~460 MB) é baixado automaticamente na primeira execução.
+# Transcrição offline:
+pip install -r requirements.txt
+# O modelo padrão é 'small' e pode ser alterado com MORFOCAMPO_WHISPER_MODEL.
 ```
 
 ## Executar
@@ -94,7 +94,7 @@ ip addr show | grep "inet " | grep -v 127.0.0.1
 | Situação | Motor | Requisito |
 |---|---|---|
 | Com internet | Web Speech API (browser) | Nenhum |
-| Sem internet | faster-whisper (servidor) | `pip install faster-whisper` |
+| Sem internet | faster-whisper (servidor) | `pip install -r requirements.txt` |
 | Sem microfone | Digitação manual | — |
 
 ## Evidência documental
