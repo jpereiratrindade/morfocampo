@@ -60,6 +60,15 @@ O celular deve estar na mesma rede WiFi do notebook (ou conectado via USB tether
 http://<IP-do-notebook>:8000
 ```
 
+Com HTTPS local:
+
+```text
+https://morfocampo.local:8011
+https://<IP-do-equipamento>:8011
+```
+
+`localhost` só funciona no próprio equipamento que está rodando o servidor. No MorfoNode, o instalador configura hostname `morfocampo` e Avahi para publicar `morfocampo.local`. Em execução manual fora do Raspberry, use o IP se `morfocampo.local` não resolver.
+
 Para descobrir o IP do notebook:
 ```sh
 ip addr show | grep "inet " | grep -v 127.0.0.1

@@ -34,7 +34,9 @@ jobs:
         run: python3 -m py_compile web/server.py web/morfocampo_bridge.py web/db.py web/transcriber.py
 
       - name: Check deploy script syntax
-        run: bash -n deploy/install_morfonode.sh
+        run: |
+          bash -n run.sh
+          bash -n deploy/install_morfonode.sh
 
       - name: Check whitespace
         run: git diff --check

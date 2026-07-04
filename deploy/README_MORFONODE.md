@@ -70,7 +70,7 @@ No celular:
 2. abra `https://morfocampo.local:8011`;
 3. aceite o aviso do certificado local autoassinado.
 
-Se o nome local não resolver, use o IP do Raspberry informado pelo sistema:
+`localhost` não deve ser usado no celular, porque aponta para o próprio celular. Se o nome local não resolver, use o IP do Raspberry informado pelo sistema:
 
 ```bash
 hostname -I

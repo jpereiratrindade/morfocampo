@@ -100,7 +100,14 @@ Depois de iniciado, acesse:
 https://localhost:8011
 ```
 
-Para acesso por celular, use o endereço IP informado pelo script e mantenha o celular na mesma rede do computador. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
+`localhost` funciona apenas no próprio computador que está executando o servidor. Para acesso por celular, mantenha o celular na mesma rede e use um dos endereços informados pelo script:
+
+```text
+https://morfocampo.local:8011
+https://<IP-do-equipamento>:8011
+```
+
+O nome `morfocampo.local` depende de mDNS/Avahi e é configurado automaticamente no modo MorfoNode. Fora do Raspberry/MorfoNode, use o IP informado pelo script se o nome local não resolver. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
 
 Para proteger rotas `/api` em rede local, defina um token antes de iniciar:
 
