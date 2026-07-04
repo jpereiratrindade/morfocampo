@@ -135,6 +135,14 @@ https://morfocampo.local:8011
 
 Os artefatos iniciais de implantação ficam em `deploy/`. A visão de evolução do produto está em `ROADMAP.md`.
 
+Para preparar um Raspberry Pi em modo headless, use o instalador dedicado:
+
+```bash
+sudo deploy/install_morfonode.sh
+```
+
+Depois da instalação, o Raspberry deve iniciar o serviço automaticamente no boot e criar o Wi-Fi de campo.
+
 ## Protocolo De Voz
 
 Exemplo de frase completa:

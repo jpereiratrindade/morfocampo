@@ -26,6 +26,8 @@ Execute a partir da raiz do repositório:
 sudo deploy/install_morfonode.sh
 ```
 
+Para preparação headless, rode o instalador uma vez por SSH ou durante a preparação da imagem do cartão SD. Depois disso, o Raspberry deve iniciar sozinho sem teclado, mouse ou monitor.
+
 O instalador faz:
 
 - instala dependências de sistema;
@@ -36,20 +38,34 @@ O instalador faz:
 - gera certificado local autoassinado;
 - instala serviço `systemd`;
 - configura hostname `morfocampo`;
-- tenta criar hotspot Wi-Fi `MORFOCAMPO` com senha local;
+- cria hotspot Wi-Fi persistente `MORFOCAMPO` via NetworkManager;
 - gera um token local para proteger as rotas `/api`;
+- salva um resumo em `/var/lib/morfocampo/morfonode-info.txt`;
 - habilita o serviço na inicialização.
 
-A senha padrão do hotspot é `morfocampo2026`. Para definir outra senha na instalação:
+Variáveis úteis:
+
+| Variável | Padrão | Uso |
+|---|---:|---|
+| `MORFOCAMPO_WIFI_SSID` | `MORFOCAMPO` | Nome do Wi-Fi criado pelo Raspberry |
+| `MORFOCAMPO_WIFI_PASSWORD` | `morfocampo2026` | Senha WPA do hotspot |
+| `MORFOCAMPO_WIFI_IFACE` | auto | Interface Wi-Fi, ex: `wlan0` |
+| `MORFOCAMPO_AUTH_TOKEN` | gerado | Token local da API |
+| `MORFOCAMPO_HOSTNAME` | `morfocampo` | Hostname publicado como `morfocampo.local` |
+| `MORFOCAMPO_PORT` | `8011` | Porta HTTPS |
+
+Exemplo com senha e token definidos:
 
 ```bash
-sudo MORFOCAMPO_WIFI_PASSWORD='senha-com-8-ou-mais-caracteres' deploy/install_morfonode.sh
+sudo MORFOCAMPO_WIFI_PASSWORD='senha-com-8-ou-mais-caracteres' \
+     MORFOCAMPO_AUTH_TOKEN='token-longo-local' \
+     deploy/install_morfonode.sh
 ```
 
-O instalador imprime o token local ao final. Para definir um token próprio:
+Se a interface Wi-Fi não for detectada automaticamente:
 
 ```bash
-sudo MORFOCAMPO_AUTH_TOKEN='token-longo-local' deploy/install_morfonode.sh
+sudo MORFOCAMPO_WIFI_IFACE=wlan0 deploy/install_morfonode.sh
 ```
 
 Quando o token está ativo, o navegador pede o token no primeiro acesso às rotas protegidas e o salva no `localStorage` do aparelho.
@@ -81,6 +97,8 @@ hostname -I
 - Banco SQLite: `/var/lib/morfocampo/campo.db`
 - Áudios: `/var/lib/morfocampo/audio_files/`
 - Certificados locais: `/var/lib/morfocampo/certs/`
+- Resumo de acesso: `/var/lib/morfocampo/morfonode-info.txt`
+- Log de instalação: `/var/lib/morfocampo/install.log`
 
 Esses arquivos devem entrar na rotina de backup/exportação do equipamento.
 
