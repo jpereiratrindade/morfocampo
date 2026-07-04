@@ -39,6 +39,8 @@ Antes de tratar a web como release robusta, implementar:
 - mensagens de erro auditáveis sem expor caminhos internos desnecessários;
 - documentação explícita de operação em rede confiável.
 
+Status atual: hardening básico iniciado com token local opcional, limites de upload, sanitização de nomes de arquivo e escape no renderizador de relatórios.
+
 ## Fase 3: MorfoNode
 
 Transformar o Raspberry Pi em um appliance de campo:

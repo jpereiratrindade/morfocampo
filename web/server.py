@@ -11,6 +11,7 @@ Acesso no celular (mesma rede WiFi):
 import argparse
 import os
 import re
+import secrets
 import sys
 import zipfile
 import io
@@ -45,6 +46,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--audio-dir", default="audio_files",  help="Diretório para armazenar áudios gravados")
     p.add_argument("--ssl-keyfile", default=None,         help="Caminho para chave SSL")
     p.add_argument("--ssl-certfile", default=None,        help="Caminho para certificado SSL")
+    p.add_argument("--auth-token", default=os.environ.get("MORFOCAMPO_AUTH_TOKEN"),
+                   help="Token local opcional para proteger rotas /api")
     return p.parse_args()
 
 
@@ -57,6 +60,11 @@ args = parse_args()
 DB_PATH   = args.db
 AUDIO_DIR = Path(args.audio_dir)
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+AUTH_TOKEN = args.auth_token
+MAX_AUDIO_BYTES = int(os.environ.get("MORFOCAMPO_MAX_AUDIO_BYTES", 25 * 1024 * 1024))
+MAX_CSV_BYTES = int(os.environ.get("MORFOCAMPO_MAX_CSV_BYTES", 5 * 1024 * 1024))
+ALLOWED_AUDIO_SUFFIXES = {".webm", ".wav", ".ogg", ".m4a", ".mp4"}
+ALLOWED_CSV_SUFFIXES = {".csv", ".txt"}
 
 _conn = db.get_connection(DB_PATH)
 db.init_db(_conn)
@@ -72,6 +80,38 @@ app = FastAPI(
 STATIC_DIR = Path(__file__).parent / "static"
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+@app.middleware("http")
+async def require_api_token(request: Request, call_next):
+    if AUTH_TOKEN and request.url.path.startswith("/api/"):
+        provided = request.headers.get("x-morfocampo-token", "")
+        if not secrets.compare_digest(provided, AUTH_TOKEN):
+            return JSONResponse(status_code=401, content={"detail": "Token Morfocampo inválido ou ausente"})
+    return await call_next(request)
+
+
+def _safe_filename(filename: str, fallback: str) -> str:
+    name = Path(filename or fallback).name
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._")
+    return name or fallback
+
+
+def _safe_slug(value: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", value).strip("._")
+    return slug or "morfocampo"
+
+
+async def _read_limited_upload(upload: UploadFile, max_bytes: int,
+                               allowed_suffixes: set[str]) -> tuple[bytes, str]:
+    filename = _safe_filename(upload.filename or "", "upload")
+    suffix = Path(filename).suffix.lower()
+    if suffix not in allowed_suffixes:
+        raise HTTPException(400, f"Extensão não permitida: {suffix or '(sem extensão)'}")
+    content = await upload.read()
+    if len(content) > max_bytes:
+        raise HTTPException(413, f"Arquivo excede o limite de {max_bytes} bytes")
+    return content, filename
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +137,11 @@ async def status():
         "version": "0.2.0",
         "db": DB_PATH,
         "binary": args.bin,
+        "auth_required": bool(AUTH_TOKEN),
+        "limits": {
+            "max_audio_bytes": MAX_AUDIO_BYTES,
+            "max_csv_bytes": MAX_CSV_BYTES,
+        },
         "transcription": transcriber.get_model_status(),
         "timestamp": datetime.now().isoformat(),
     }
@@ -153,7 +198,7 @@ async def transcribe_audio(
     Recebe blob de áudio (.webm / .wav / .ogg) e retorna transcrição.
     Usado quando o browser não tem Web Speech API ou está offline.
     """
-    audio_bytes = await audio.read()
+    audio_bytes, _ = await _read_limited_upload(audio, MAX_AUDIO_BYTES, ALLOWED_AUDIO_SUFFIXES)
     result = transcriber.transcribe_bytes(audio_bytes, language=language)
     if not result.get("ok"):
         raise HTTPException(503, detail=result.get("error", "Transcrição falhou"))
@@ -240,10 +285,10 @@ async def upload_audio(audio: UploadFile = File(...)):
     Retorna o nome do arquivo para vincular ao registro.
     """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    suffix = Path(audio.filename or "audio.webm").suffix or ".webm"
+    content, safe_name = await _read_limited_upload(audio, MAX_AUDIO_BYTES, ALLOWED_AUDIO_SUFFIXES)
+    suffix = Path(safe_name).suffix.lower() or ".webm"
     filename = f"audio_{ts}{suffix}"
     file_path = AUDIO_DIR / filename
-    content = await audio.read()
     file_path.write_bytes(content)
     return {"filename": filename, "size_bytes": len(content)}
 
@@ -306,8 +351,7 @@ async def import_irder(
     if not camp:
         raise HTTPException(404, "Campanha não encontrada")
 
-    csv_bytes = await file.read()
-    filename  = file.filename or "irder_import.csv"
+    csv_bytes, filename = await _read_limited_upload(file, MAX_CSV_BYTES, ALLOWED_CSV_SUFFIXES)
 
     result = bridge.import_irder(
         csv_bytes, filename,
@@ -404,12 +448,12 @@ async def export_campaign(campaign_id: int):
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        slug = f"{camp['project_id']}_{camp['campaign_id']}"
+        slug = _safe_slug(f"{camp['project_id']}_{camp['campaign_id']}")
         zf.writestr(f"{slug}_registros.csv", csv_content)
         zf.writestr(f"{slug}_relatorio_validacao.md", report_md)
 
     zip_buffer.seek(0)
-    filename = f"morfocampo_{camp['project_id']}_{camp['campaign_id']}.zip"
+    filename = f"morfocampo_{slug}.zip"
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
@@ -427,6 +471,7 @@ if __name__ == "__main__":
     print(f"   Banco:   {DB_PATH}")
     print(f"   Binário: {args.bin}")
     print(f"   Áudios:  {AUDIO_DIR}/")
+    print(f"   Auth:    {'token local ativo' if AUTH_TOKEN else 'desativada'}")
     print(f"   Transcrição: {transcriber.get_model_status()['message']}")
     print()
     uvicorn_kwargs = {

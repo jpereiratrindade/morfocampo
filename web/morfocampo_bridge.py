@@ -9,6 +9,7 @@ import csv
 import io
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -208,7 +209,7 @@ class MorfocampoBridge:
         e retorna dict com records (lista de dicts) + issues.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
-            input_file = Path(tmpdir) / filename
+            input_file = Path(tmpdir) / safe_temp_filename(filename)
             out_dir    = Path(tmpdir) / "out"
             input_file.write_bytes(csv_bytes)
 
@@ -249,3 +250,9 @@ class MorfocampoBridge:
                 "total": len(records),
                 "issues": issues,
             }
+
+
+def safe_temp_filename(filename: str, fallback: str = "upload.csv") -> str:
+    name = Path(filename or fallback).name
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._")
+    return name or fallback

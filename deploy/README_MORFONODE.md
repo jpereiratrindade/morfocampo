@@ -37,6 +37,7 @@ O instalador faz:
 - instala serviço `systemd`;
 - configura hostname `morfocampo`;
 - tenta criar hotspot Wi-Fi `MORFOCAMPO` com senha local;
+- gera um token local para proteger as rotas `/api`;
 - habilita o serviço na inicialização.
 
 A senha padrão do hotspot é `morfocampo2026`. Para definir outra senha na instalação:
@@ -44,6 +45,14 @@ A senha padrão do hotspot é `morfocampo2026`. Para definir outra senha na inst
 ```bash
 sudo MORFOCAMPO_WIFI_PASSWORD='senha-com-8-ou-mais-caracteres' deploy/install_morfonode.sh
 ```
+
+O instalador imprime o token local ao final. Para definir um token próprio:
+
+```bash
+sudo MORFOCAMPO_AUTH_TOKEN='token-longo-local' deploy/install_morfonode.sh
+```
+
+Quando o token está ativo, o navegador pede o token no primeiro acesso às rotas protegidas e o salva no `localStorage` do aparelho.
 
 ## Serviço
 
@@ -77,4 +86,4 @@ Esses arquivos devem entrar na rotina de backup/exportação do equipamento.
 
 ## Segurança Operacional
 
-Este modo ainda pressupõe rede local confiável. Antes de uma release embarcada pública, o projeto deve incluir autenticação local, limites de upload, sanitização de arquivos e escape seguro de relatórios.
+Este modo ainda pressupõe rede local confiável. A API usa token local simples, limites de upload e sanitização básica, mas uma release embarcada pública ainda deve passar por validação em Raspberry Pi real e revisão de operação.

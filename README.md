@@ -100,6 +100,12 @@ https://localhost:8011
 
 Para acesso por celular, use o endereço IP informado pelo script e mantenha o celular na mesma rede do computador. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
 
+Para proteger rotas `/api` em rede local, defina um token antes de iniciar:
+
+```bash
+MORFOCAMPO_AUTH_TOKEN='token-longo-local' ./run.sh
+```
+
 Mais detalhes estão em `web/README_WEB.md`.
 
 ## MorfoNode

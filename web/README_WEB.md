@@ -41,6 +41,17 @@ python server.py \
   --port 8000
 ```
 
+Para proteger as rotas `/api` em rede local, defina um token:
+
+```sh
+MORFOCAMPO_AUTH_TOKEN='token-longo-local' python server.py \
+  --db campo.db \
+  --bin ../build/morfocampo \
+  --port 8000
+```
+
+Quando o token está ativo, o frontend envia `X-Morfocampo-Token` nas chamadas da API. No primeiro acesso protegido, o navegador solicita o token e o salva localmente no aparelho.
+
 ## Acessar no celular
 
 O celular deve estar na mesma rede WiFi do notebook (ou conectado via USB tethering).

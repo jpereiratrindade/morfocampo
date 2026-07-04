@@ -35,6 +35,7 @@ const State = {
 const $ = id => document.getElementById(id);
 const show = id => { $(id).classList.add("active"); };
 const hide = id => { $(id).classList.remove("active"); };
+const AUTH_STORAGE_KEY = "morfocampo_auth_token";
 
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -51,9 +52,18 @@ function toast(msg, type = "success", duration = 3000) {
   setTimeout(() => el.remove(), duration);
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function renderMarkdown(md) {
   // Conversão mínima de Markdown para HTML (sem dependência externa)
-  return md
+  return escapeHtml(md)
     .replace(/^#### (.+)$/gm, "<h4>$1</h4>")
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
@@ -69,6 +79,29 @@ function renderMarkdown(md) {
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
+function authHeaders() {
+  const token = localStorage.getItem(AUTH_STORAGE_KEY);
+  return token ? { "X-Morfocampo-Token": token } : {};
+}
+
+function requestAuthToken() {
+  const token = prompt("Token Morfocampo:");
+  if (token && token.trim()) {
+    localStorage.setItem(AUTH_STORAGE_KEY, token.trim());
+    return true;
+  }
+  return false;
+}
+
+async function apiFetch(path, opts = {}, retryAuth = true) {
+  const headers = { ...(opts.headers || {}), ...authHeaders() };
+  const res = await fetch(path, { ...opts, headers });
+  if (res.status === 401 && retryAuth && requestAuthToken()) {
+    return apiFetch(path, opts, false);
+  }
+  return res;
+}
+
 async function api(method, path, body = null, isForm = false) {
   const opts = { method, headers: {} };
   if (body && !isForm) {
@@ -77,12 +110,14 @@ async function api(method, path, body = null, isForm = false) {
   } else if (body && isForm) {
     opts.body = body; // FormData
   }
-  const res = await fetch(path, opts);
+  const res = await apiFetch(path, opts);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || res.statusText);
   }
-  return res.json();
+  if (res.status === 204) return null;
+  const contentType = res.headers.get("content-type") || "";
+  return contentType.includes("application/json") ? res.json() : res.text();
 }
 
 // ─── Tela HOME & Identificação do Observador ──────────────────────────────────
@@ -318,7 +353,7 @@ async function openAdmin(campaignId) {
 async function adminDeleteRecord(id) {
   if (!confirm("Excluir este registro da campanha?")) return;
   try {
-    await fetch(`/api/records/${id}`, { method: "DELETE" });
+    await api("DELETE", `/api/records/${id}`);
     toast("Registro excluído");
     await openAdmin(State.currentCampaign.id);
   } catch (e) {
@@ -355,11 +390,30 @@ async function adminValidate() {
   }
 }
 
-function adminExport() {
-  if (!State.currentCampaign) return;
+async function downloadFile(url, fallbackName) {
+  const res = await apiFetch(url);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  const blob = await res.blob();
   const a = document.createElement("a");
-  a.href = `/api/campaigns/${State.currentCampaign.id}/export`;
+  a.href = URL.createObjectURL(blob);
+  a.download = fallbackName;
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+async function adminExport() {
+  if (!State.currentCampaign) return;
+  try {
+    await downloadFile(
+      `/api/campaigns/${State.currentCampaign.id}/export`,
+      `morfocampo_${State.currentCampaign.campaign_id || "export"}.zip`
+    );
+  } catch (e) {
+    toast("Exportação falhou: " + e.message, "error");
+  }
 }
 
 // ─── Tela SESSION SETUP ───────────────────────────────────────────────────────
@@ -579,7 +633,7 @@ async function serverTranscribe(blob) {
     const form = new FormData();
     form.append("audio", blob, "audio.webm");
     form.append("language", "pt");
-    const res = await fetch("/api/transcribe", { method: "POST", body: form });
+    const res = await apiFetch("/api/transcribe", { method: "POST", body: form });
     if (!res.ok) throw new Error((await res.json()).detail);
     const data = await res.json();
     State.currentTranscript = data.text;
@@ -873,7 +927,7 @@ async function editRecord(id) {
 async function deleteRecord(id, silent = false) {
   if (!silent && !confirm("Excluir este registro?")) return;
   try {
-    await fetch(`/api/records/${id}`, { method: "DELETE" });
+    await api("DELETE", `/api/records/${id}`);
     if (!silent) toast("Registro excluído");
     await loadRecords();
   } catch (e) {
@@ -937,10 +991,11 @@ function renderValidationResult(result) {
 
 async function exportCampaign() {
   const url = `/api/campaigns/${State.currentCampaign.id}/export`;
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "";
-  a.click();
+  try {
+    await downloadFile(url, `morfocampo_${State.currentCampaign.campaign_id || "export"}.zip`);
+  } catch (e) {
+    toast("Exportação falhou: " + e.message, "error");
+  }
 }
 
 // ─── Modal IRDER ──────────────────────────────────────────────────────────────
@@ -978,7 +1033,7 @@ async function submitIrderImport() {
   form.append("observer", $("irder-observer").value.trim());
 
   try {
-    const res = await fetch(
+    const res = await apiFetch(
       `/api/campaigns/${State.currentCampaign.id}/import-irder`,
       { method: "POST", body: form }
     );
@@ -991,7 +1046,7 @@ async function submitIrderImport() {
     // Exibe resultado inline
     const issueHtml = data.issues.length
       ? `<div style="margin-top:10px">
-          ${data.issues.map(i => `<div style="font-size:0.78rem;color:var(--amber);margin-top:4px">⚠ ${i}</div>`).join("")}
+          ${data.issues.map(i => `<div style="font-size:0.78rem;color:var(--amber);margin-top:4px">⚠ ${escapeHtml(i)}</div>`).join("")}
          </div>` : "";
 
     $("irder-result").innerHTML = `

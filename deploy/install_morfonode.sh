@@ -15,6 +15,7 @@ SERVICE_FILE="/etc/systemd/system/morfocampo.service"
 SERVICE_USER="morfocampo"
 SSID="${MORFOCAMPO_WIFI_SSID:-MORFOCAMPO}"
 WIFI_PASSWORD="${MORFOCAMPO_WIFI_PASSWORD:-morfocampo2026}"
+AUTH_TOKEN="${MORFOCAMPO_AUTH_TOKEN:-}"
 
 echo "==> Instalando dependências de sistema"
 apt-get update
@@ -35,6 +36,9 @@ if ! id "${SERVICE_USER}" >/dev/null 2>&1; then
 fi
 
 mkdir -p "${STATE_DIR}/audio_files" "${STATE_DIR}/certs" "${CONFIG_DIR}"
+if [[ -z "${AUTH_TOKEN}" ]]; then
+  AUTH_TOKEN="$(openssl rand -hex 16)"
+fi
 
 echo "==> Instalando código em ${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}"
@@ -66,10 +70,14 @@ fi
 
 echo "==> Instalando configuração"
 install -m 0644 "${INSTALL_DIR}/deploy/morfonode.env.example" "${CONFIG_DIR}/morfonode.env"
+grep -v '^MORFOCAMPO_AUTH_TOKEN=' "${CONFIG_DIR}/morfonode.env" > "${CONFIG_DIR}/morfonode.env.tmp"
+printf 'MORFOCAMPO_AUTH_TOKEN=%s\n' "${AUTH_TOKEN}" >> "${CONFIG_DIR}/morfonode.env.tmp"
+mv "${CONFIG_DIR}/morfonode.env.tmp" "${CONFIG_DIR}/morfonode.env"
 install -m 0644 "${INSTALL_DIR}/deploy/morfocampo.service" "${SERVICE_FILE}"
 
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${STATE_DIR}"
 chown -R root:root "${INSTALL_DIR}" "${VENV_DIR}" "${CONFIG_DIR}"
+chmod 0640 "${CONFIG_DIR}/morfonode.env"
 
 echo "==> Configurando hostname local"
 hostnamectl set-hostname morfocampo
@@ -94,4 +102,5 @@ echo
 echo "MorfoNode instalado."
 echo "Wi-Fi: ${SSID}"
 echo "URL: https://morfocampo.local:8011"
+echo "Token local: ${AUTH_TOKEN}"
 echo "Status: sudo systemctl status morfocampo"
