@@ -37,6 +37,7 @@ jobs:
         run: |
           bash -n run.sh
           bash -n deploy/install_morfonode.sh
+          bash -n deploy/configure_mdns_alias.sh
 
       - name: Check whitespace
         run: git diff --check

@@ -109,6 +109,12 @@ https://<IP-do-equipamento>:8011
 
 O nome `morfocampo.local` depende de mDNS/Avahi e é configurado automaticamente no modo MorfoNode. Fora do Raspberry/MorfoNode, use o IP informado pelo script se o nome local não resolver. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
 
+Em uma máquina de desenvolvimento Linux com Avahi, você pode publicar o alias local com:
+
+```bash
+sudo deploy/configure_mdns_alias.sh
+```
+
 Para proteger rotas `/api` em rede local, defina um token antes de iniciar:
 
 ```bash
