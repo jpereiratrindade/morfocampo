@@ -1,15 +1,20 @@
+# Build and generated outputs
 build/
 out/
+out*/
 out_voice/
 tmp_teste_campo/
 campo_C01/
+a.out
+test_parse.cpp
+server.log
 *.o
 *.a
 *.so
 *.csv~
 session_voice.csv
 
-# web runtime
+# Web runtime
 web/*.db
 web/audio_files/
 web/__pycache__/
@@ -18,18 +23,11 @@ web/**/__pycache__/
 .venv/
 venv/
 
-# Build and Temp
-build/
-a.out
-test_parse.cpp
-server.log
-out*/
-
 # Databases
 *.db
 *.db-shm
 *.db-wal
 .xdp-*
 
-# Certs
+# Local certs
 web/*.pem

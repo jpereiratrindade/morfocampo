@@ -1,109 +1,132 @@
-# Morfocampo 🌳
+# Morfocampo
 
-O `morfocampo` é um ecossistema completo para a coleta, processamento, transcrição por voz e validação de dados morfométricos e silvipastoris (protocolo IRDER) em campo. 
+`morfocampo` é uma ferramenta para coleta, normalização, importação e validação de dados morfométricos e silvipastoris em campo, com suporte ao protocolo IRDER.
 
-Criado com uma arquitetura híbrida de alto desempenho, o sistema combina um **núcleo determinístico em C++** com uma **aplicação web mobile-first** (Python/FastAPI + SQLite), permitindo coletas ágeis por comando de voz direto no celular, mesmo sem acesso à internet.
+O projeto combina um núcleo C++20, usado pela CLI e pelos testes, com uma interface web mobile em Python/FastAPI para coleta em campo com SQLite, áudio e integração com o binário principal.
 
----
+## Componentes
 
-## 🚀 Arquitetura e Componentes
+- `src/` e `include/`: núcleo C++20, parser de voz, importador IRDER, validação, CSV e relatórios.
+- `tests/`: testes automatizados do núcleo.
+- `examples/`: arquivos pequenos para validar fluxos de entrada e saída.
+- `web/`: aplicação FastAPI, frontend mobile, persistência SQLite e bridge para o binário C++.
+- `run.sh`: script operacional para compilar o núcleo e subir o servidor web local.
 
-1. **Núcleo C++20 (`src/`, `include/`)**
-   O coração do sistema. Responsável por interpretar a fala estruturada (Regex avançado e normalização utf-8), processar e validar arquivos CSV, e emitir relatórios Markdown. É um binário isolado, testável e sem dependências externas complexas, garantindo auditoria e velocidade.
+Arquivos gerados localmente, como `build/`, bancos SQLite, certificados, ambientes Python e áudios de campo, não fazem parte do repositório.
 
-2. **Interface Web / App Mobile (`web/`)**
-   Uma SPA (Single Page Application) em Vanilla JS, HTML e CSS injetada por um servidor Python (FastAPI).
-   * **Gravador de áudio nativo:** O usuário grava a voz em campo direto no navegador do celular.
-   * **Transcrição Offline:** O servidor utiliza o modelo `faster-whisper` localmente para converter o áudio em texto (sem precisar de internet em campo).
-   * **Persistência Segura:** Banco de dados SQLite (`web/campo.db`) em tempo real.
-   * **Painel Admin:** Visão global de campanhas, observadores, e controle de exportações.
+## Requisitos
 
-3. **Integração IRDER**
-   O morfocampo não lida apenas com dendrometria básica. Ele possui suporte total e nativo aos descritores do **Protocolo IRDER** (silvipastoril): *Altura do Fuste (HF), Altura de Inserção da Copa (HIC), Densicopa, Forma do Fuste, Posição Sociológica, e Características 1/2*.
+Para o núcleo C++:
 
----
+- CMake 3.20 ou superior
+- Compilador C++ com suporte a C++20
 
-## 📖 Tutorial de Uso Completo
+Para a interface web:
 
-### 1. Inicializando o Servidor Web
+- Python 3
+- Dependências listadas em `web/requirements.txt`
+- `openssl`, quando for usar HTTPS local pelo `run.sh`
 
-Para iniciar o sistema na sua máquina e deixá-lo pronto para acesso no celular, basta usar o script de automação na raiz do projeto:
+A transcrição offline com `faster-whisper` é opcional. Quando usada, o modelo é baixado localmente na primeira execução.
+
+## Build
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+```
+
+O binário principal fica em:
+
+```bash
+build/morfocampo
+```
+
+## Testes
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+O conjunto atual cobre normalização, validação, parser de transcrições, parser de comandos de voz e fluxos básicos da CLI.
+
+## Uso Pela CLI
+
+Validar uma planilha:
+
+```bash
+./build/morfocampo validate --input examples/template_arvores.csv --out out
+```
+
+Interpretar frases estruturadas de voz:
+
+```bash
+./build/morfocampo parse-voice --input examples/fala_estruturada.txt --out out/dados_por_voz.csv
+```
+
+Converter transcrições em lote:
+
+```bash
+./build/morfocampo parse-transcript --input examples/transcricoes_exemplo.txt --out out/transcricao_convertida.csv
+```
+
+Importar uma planilha IRDER:
+
+```bash
+./build/morfocampo import-irder --input planilha_irder.csv --out resultado_importado.csv
+```
+
+## Interface Web
+
+Para iniciar o ambiente web local:
 
 ```bash
 ./run.sh
 ```
 
-O script cuidará de:
-1. Compilar o binário C++ (caso existam atualizações de código).
-2. Verificar dependências Python (`fastapi`, `faster-whisper`, etc.).
-3. Subir o servidor Uvicorn na porta **8011** (HTTPS).
+O script:
 
-**Acesso no Celular:**
-Conecte o celular na mesma rede Wi-Fi do notebook (ou use ancoragem USB). O terminal exibirá um endereço seguro (HTTPS) parecido com: `https://192.168.0.10:8011`.
-Abra esse link no navegador do celular. (*Nota: Aceite o aviso de segurança do navegador para "Prosseguir em modo inseguro", isso é necessário para o navegador liberar acesso ao microfone*).
+1. compila o binário C++ quando necessário;
+2. instala ou verifica dependências Python;
+3. cria certificados locais autoassinados quando ausentes;
+4. sobe o servidor HTTPS na porta `8011`.
 
-### 2. Fluxo em Campo (Coleta por Voz)
+Depois de iniciado, acesse:
 
-O `morfocampo` foi desenhado para agilizar o trabalho do observador que está com fita métrica e prancheta na mão.
-
-1. Acesse o aplicativo e clique em **+ Campanha** para registrar a área de estudo.
-2. Na tela da Sessão, insira seu **Nome** (Observador) e a **Parcela**.
-3. Na aba **Coletar**, clique no botão central de Microfone (🎙) e dite as medidas da árvore pausadamente.
-
-**Protocolo de Fala (Exemplo Completo):**
-> *"arvore A-023 espécie Butia odorata latitude -30,5 longitude -54,2 CAP 42,5 altura total 4,8 altura da copa 2,2 copa ns 3,5 copa lo 3,1 condição viva HF 2,5 HIC 1,5 densicopa 4 forma TL posição dossel característica PF característica 2 seca"*
-
-*Dicas para o comando de voz:*
-* Use números normais e vírgulas: diga "quarenta e dois vírgula cinco", não fale unidades por extenso.
-* O comando `corrigir` altera um registro pré-existente (ex: `"corrigir arvore A-023 CAP 43,0"`).
-* Os descritores de copa tradicionais (`altura da copa`, `copa ns`, `copa lo`) convivem em harmonia com os descritores do IRDER. Todos são opcionais e só aparecem se forem ditados.
-
-### 3. Integração e Importação de Planilhas Legadas
-
-Se você tem planilhas antigas do protocolo IRDER (exportadas em CSV pelo LibreOffice), o morfocampo pode ingeri-las nativamente:
-
-1. Acesse o botão **⚙ Admin** ao lado da sua campanha.
-2. Clique no botão verde **🌳 IRDER**.
-3. O modal exibirá os campos esperados (separador `;` ou `,`). Faça o upload do arquivo e o sistema migrará os dados instantaneamente para o SQLite.
-
-### 4. Validação e Exportação
-
-Ao final do dia de trabalho:
-1. Vá na aba **✓ Validar**.
-2. Clique em **▶ Validar campanha**.
-3. O núcleo C++ varrerá todos os registros cruzando informações de todos os observadores para checar valores discrepantes, árvores não identificadas, e DAPs fora da faixa aceitável.
-4. Clique em **⬇ Exportar** para baixar um pacote `.zip` contendo os CSVs consolidados e o Relatório em Markdown, ideais para importar no QGIS ou R.
-
----
-
-## 🛠 Comandos de Terminal (Core C++ / CLI)
-
-O morfocampo ainda pode ser usado de forma "pura", diretamente pelo terminal, sem o servidor Web. O binário ficará em `build/morfocampo`.
-
-**Normalizar e Validar um arquivo CSV avulso:**
-```bash
-./build/morfocampo validate --input sua_planilha.csv --out pasta_saida --max-cap 600
+```text
+https://localhost:8011
 ```
 
-**Interpretar arquivo de transcrições em lote (lote txt de vozes):**
-```bash
-./build/morfocampo parse-voice --input audio_transcrito.txt --out resultado_interpretado.csv
+Para acesso por celular, use o endereço IP informado pelo script e mantenha o celular na mesma rede do computador. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
+
+Mais detalhes estão em `web/README_WEB.md`.
+
+## Protocolo De Voz
+
+Exemplo de frase completa:
+
+```text
+arvore A-023 espécie Butia odorata latitude -30,5 longitude -54,2 CAP 42,5 altura total 4,8 altura da copa 2,2 copa ns 3,5 copa lo 3,1 condição viva HF 2,5 HIC 1,5 densicopa 4 forma TL posição dossel característica PF característica 2 seca
 ```
 
-**Importar protocolo IRDER em lote pelo terminal:**
-```bash
-./build/morfocampo import-irder --input planilha_irder.csv --out resultado_importado.csv
+O comando `corrigir` altera campos de um registro existente:
+
+```text
+corrigir arvore A-023 CAP 43,0
 ```
 
----
+Os descritores IRDER são opcionais e podem conviver com os campos dendrométricos tradicionais.
 
-## 🔧 Estrutura de Diretórios
+## Fluxo De Desenvolvimento
 
-* `src/` e `include/`: Código-fonte C++20 puro. Classes de negócio, Validador, Parser de Voz e gerador de Relatório.
-* `web/`: Aplicação Python FastAPI (`server.py`), Banco SQLite (`db.py`), Bridge C++ (`morfocampo_bridge.py`), e frontend em HTML/JS (`static/`).
-* `build/`: Local do binário C++ após execução do `run.sh`.
-* `tests/`: Bateria de testes unitários do núcleo C++.
+Antes de abrir uma tag ou release:
 
-## 💡 Filosofia de Uso
+1. confirme que o repositório está limpo com `git status`;
+2. compile com `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release`;
+3. rode `ctest --test-dir build --output-on-failure`;
+4. revise se apenas código, configurações, exemplos e documentação necessários estão versionados;
+5. crie a tag somente depois de validar o estado acima.
 
-O aplicativo digital **complementa e acelera o registro, mas não substitui a necessidade do papel como backup de segurança ou as marcações no terreno**. Seu maior benefício é o *Double-Entry* instantâneo: você coleta falando, o celular registra visualmente e o banco normaliza e exporta, minimizando semanas de digitação em laboratório.
+## Filosofia De Campo
+
+A interface digital complementa a coleta física, mas não substitui papel, marcações no terreno ou outros mecanismos de segurança documental. O objetivo é reduzir retrabalho de digitação, padronizar campos e facilitar validação rápida ao final do dia.
