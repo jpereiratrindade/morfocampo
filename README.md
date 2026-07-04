@@ -104,10 +104,11 @@ https://localhost:8011
 
 ```text
 https://morfocampo.local:8011
+https://<hostname>.local:8011
 https://<IP-do-equipamento>:8011
 ```
 
-O nome `morfocampo.local` depende de mDNS/Avahi e é configurado automaticamente no modo MorfoNode. Fora do Raspberry/MorfoNode, use o IP informado pelo script se o nome local não resolver. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
+O nome `morfocampo.local` depende de mDNS/Avahi e é configurado automaticamente no modo MorfoNode. Em uma máquina de desenvolvimento, o endereço pode ser o hostname real do computador, por exemplo `https://fedora.local:8011`. Use o IP informado pelo script se nenhum nome `.local` resolver. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
 
 Em uma máquina de desenvolvimento Linux com Avahi, você pode publicar o alias local com:
 

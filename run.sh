@@ -12,6 +12,11 @@ DB="$WEB/campo.db"
 PORT=8011
 HOST="0.0.0.0"
 LOCAL_NAME="${MORFOCAMPO_LOCAL_NAME:-morfocampo.local}"
+HOSTNAME_LOCAL="$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)"
+HOSTNAME_LOCAL="${HOSTNAME_LOCAL%%.*}"
+if [[ -n "$HOSTNAME_LOCAL" ]]; then
+  HOSTNAME_LOCAL="$HOSTNAME_LOCAL.local"
+fi
 CERT="$WEB/cert.pem"
 KEY="$WEB/key.pem"
 
@@ -51,11 +56,16 @@ if [[ ! -f "$CERT" || ! -f "$KEY" ]]; then
   NEEDS_CERT=1
 elif ! openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$LOCAL_NAME"; then
   NEEDS_CERT=1
+elif [[ -n "$HOSTNAME_LOCAL" ]] && ! openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$HOSTNAME_LOCAL"; then
+  NEEDS_CERT=1
 fi
 
 if [[ "$NEEDS_CERT" -eq 1 ]]; then
   echo -e "${YELLOW}⟳  Gerando certificado SSL autoassinado para $LOCAL_NAME...${RESET}"
   SAN="DNS:$LOCAL_NAME,DNS:localhost,IP:127.0.0.1"
+  if [[ -n "$HOSTNAME_LOCAL" && "$HOSTNAME_LOCAL" != "$LOCAL_NAME" ]]; then
+    SAN="$SAN,DNS:$HOSTNAME_LOCAL"
+  fi
   if [[ -n "$LOCAL_IP" ]]; then
     SAN="$SAN,IP:$LOCAL_IP"
   fi
@@ -73,6 +83,9 @@ echo -e "   Binário:  ${CYAN}$BIN${RESET}"
 echo ""
 echo -e "   Acesso local:   ${CYAN}https://localhost:$PORT${RESET}"
 echo -e "   Nome local:     ${CYAN}https://$LOCAL_NAME:$PORT${RESET}"
+if [[ -n "$HOSTNAME_LOCAL" && "$HOSTNAME_LOCAL" != "$LOCAL_NAME" ]]; then
+  echo -e "   Host atual:     ${CYAN}https://$HOSTNAME_LOCAL:$PORT${RESET}"
+fi
 if [[ -n "$LOCAL_IP" ]]; then
   echo -e "   Acesso celular: ${CYAN}https://$LOCAL_IP:$PORT${RESET}  ← copie para o celular"
   echo -e "   ${YELLOW}Nota: No celular, o aviso 'Sua conexão não é particular' é esperado.${RESET}"
