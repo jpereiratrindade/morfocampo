@@ -1,5 +1,7 @@
 # Morfocampo
 
+[![CI](https://github.com/jpereiratrindade/morfocampo/actions/workflows/ci.yml/badge.svg)](https://github.com/jpereiratrindade/morfocampo/actions/workflows/ci.yml)
+
 `morfocampo` é uma ferramenta para coleta, normalização, importação e validação de dados morfométricos e silvipastoris em campo, com suporte ao protocolo IRDER.
 
 O projeto combina um núcleo C++20, usado pela CLI e pelos testes, com uma interface web mobile em Python/FastAPI para coleta em campo com SQLite, áudio e integração com o binário principal.
