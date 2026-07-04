@@ -42,6 +42,7 @@ O instalador faz:
 - gera um token local para proteger as rotas `/api`;
 - instala `faster-whisper` e baixa o modelo de transcrição;
 - salva um resumo em `/var/lib/morfocampo/morfonode-info.txt`;
+- instala o comando `morfocampo-backup`;
 - habilita o serviço na inicialização.
 
 Variáveis úteis:
@@ -104,6 +105,26 @@ hostname -I
 - Log de instalação: `/var/lib/morfocampo/install.log`
 
 Esses arquivos devem entrar na rotina de backup/exportação do equipamento.
+
+## Backup
+
+Para criar um pacote local com banco, áudios, certificados e resumo de acesso:
+
+```bash
+sudo morfocampo-backup
+```
+
+O arquivo é salvo por padrão em:
+
+```text
+/var/lib/morfocampo/backups/
+```
+
+Também é possível executar o script diretamente a partir do repositório:
+
+```bash
+sudo deploy/backup_morfonode.sh
+```
 
 ## Segurança Operacional
 

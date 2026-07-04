@@ -65,7 +65,7 @@ Requisitos:
 
 Artefatos iniciais ficam em `deploy/`.
 
-Status atual: instalador MorfoNode com checagens básicas, hotspot persistente via NetworkManager, serviço `systemd`, token local, log de instalação e resumo de acesso em `/var/lib/morfocampo/morfonode-info.txt`.
+Status atual: instalador MorfoNode com checagens básicas, hotspot persistente via NetworkManager, serviço `systemd`, token local, log de instalação, resumo de acesso em `/var/lib/morfocampo/morfonode-info.txt` e backup manual via `morfocampo-backup`.
 
 ## Fase 4: Atualização Operacional
 

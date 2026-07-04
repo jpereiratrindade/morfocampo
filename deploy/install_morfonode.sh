@@ -176,6 +176,7 @@ install_config() {
   } >> "${CONFIG_DIR}/morfonode.env.tmp"
   mv "${CONFIG_DIR}/morfonode.env.tmp" "${CONFIG_DIR}/morfonode.env"
   install -m 0644 "${INSTALL_DIR}/deploy/morfocampo.service" "${SERVICE_FILE}"
+  install -m 0755 "${INSTALL_DIR}/deploy/backup_morfonode.sh" /usr/local/bin/morfocampo-backup
 
   chown -R "${SERVICE_USER}:${SERVICE_USER}" "${STATE_DIR}"
   chown -R root:root "${INSTALL_DIR}" "${VENV_DIR}" "${CONFIG_DIR}"
@@ -238,6 +239,9 @@ Serviço:
 
 Log de instalação:
   ${LOG_FILE}
+
+Backup manual:
+  sudo morfocampo-backup
 EOF
 
   chown "${SERVICE_USER}:${SERVICE_USER}" "${INFO_FILE}"
