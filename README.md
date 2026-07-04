@@ -10,6 +10,7 @@ O projeto combina um núcleo C++20, usado pela CLI e pelos testes, com uma inter
 - `tests/`: testes automatizados do núcleo.
 - `examples/`: arquivos pequenos para validar fluxos de entrada e saída.
 - `web/`: aplicação FastAPI, frontend mobile, persistência SQLite e bridge para o binário C++.
+- `deploy/`: artefatos iniciais para implantação MorfoNode em Raspberry Pi.
 - `run.sh`: script operacional para compilar o núcleo e subir o servidor web local.
 
 Arquivos gerados localmente, como `build/`, bancos SQLite, certificados, ambientes Python e áudios de campo, não fazem parte do repositório.
@@ -100,6 +101,17 @@ https://localhost:8011
 Para acesso por celular, use o endereço IP informado pelo script e mantenha o celular na mesma rede do computador. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
 
 Mais detalhes estão em `web/README_WEB.md`.
+
+## MorfoNode
+
+O modo MorfoNode transforma um Raspberry Pi em um equipamento local de coleta:
+
+```text
+Wi-Fi: MORFOCAMPO
+https://morfocampo.local:8011
+```
+
+Os artefatos iniciais de implantação ficam em `deploy/`. A visão de evolução do produto está em `ROADMAP.md`.
 
 ## Protocolo De Voz
 

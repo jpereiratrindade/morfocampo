@@ -1,0 +1,28 @@
+[Unit]
+Description=Morfocampo local field server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=morfocampo
+Group=morfocampo
+WorkingDirectory=/opt/morfocampo/web
+EnvironmentFile=/etc/morfocampo/morfonode.env
+ExecStart=/opt/morfocampo-venv/bin/python /opt/morfocampo/web/server.py \
+  --db ${MORFOCAMPO_DB} \
+  --bin ${MORFOCAMPO_BIN} \
+  --audio-dir ${MORFOCAMPO_AUDIO_DIR} \
+  --host ${MORFOCAMPO_HOST} \
+  --port ${MORFOCAMPO_PORT} \
+  --ssl-keyfile ${MORFOCAMPO_SSL_KEY} \
+  --ssl-certfile ${MORFOCAMPO_SSL_CERT}
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/morfocampo
+
+[Install]
+WantedBy=multi-user.target
