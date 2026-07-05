@@ -77,13 +77,19 @@ morfocampo update
 
 Fluxo esperado:
 
-1. parar serviço;
-2. atualizar código;
-3. recompilar;
-4. aplicar migrações;
+1. verificar internet;
+2. selecionar tag `v*`;
+3. confirmar CI aprovado no GitHub Actions;
+4. construir em staging;
 5. rodar testes de sanidade;
-6. reiniciar serviço;
-7. registrar versão instalada.
+6. fazer backup de dados e código;
+7. parar serviço;
+8. atualizar código;
+9. reiniciar serviço;
+10. restaurar versão anterior em falha de troca ou inicialização;
+11. registrar versão instalada.
+
+Status atual: atualizador inicial implementado como `morfocampo-update`, com timer `systemd` instalado e desabilitado por política via `MORFOCAMPO_UPDATE_ENABLED=0` até o operador optar por atualização automática.
 
 ## Fase 5: Sincronização
 

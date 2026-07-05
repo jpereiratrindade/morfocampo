@@ -92,6 +92,7 @@ install_dependencies() {
     build-essential \
     ca-certificates \
     cmake \
+    git \
     iw \
     network-manager \
     openssl \
@@ -176,11 +177,26 @@ install_config() {
   } >> "${CONFIG_DIR}/morfonode.env.tmp"
   mv "${CONFIG_DIR}/morfonode.env.tmp" "${CONFIG_DIR}/morfonode.env"
   install -m 0644 "${INSTALL_DIR}/deploy/morfocampo.service" "${SERVICE_FILE}"
+  install -m 0644 "${INSTALL_DIR}/deploy/morfocampo-update.service" /etc/systemd/system/morfocampo-update.service
+  install -m 0644 "${INSTALL_DIR}/deploy/morfocampo-update.timer" /etc/systemd/system/morfocampo-update.timer
   install -m 0755 "${INSTALL_DIR}/deploy/backup_morfonode.sh" /usr/local/bin/morfocampo-backup
+  install -m 0755 "${INSTALL_DIR}/deploy/update_morfonode.sh" /usr/local/bin/morfocampo-update
 
   chown -R "${SERVICE_USER}:${SERVICE_USER}" "${STATE_DIR}"
   chown -R root:root "${INSTALL_DIR}" "${VENV_DIR}" "${CONFIG_DIR}"
   chmod 0640 "${CONFIG_DIR}/morfonode.env"
+}
+
+record_installed_version() {
+  echo "==> Registrando versão instalada"
+  {
+    printf 'tag=%s\n' "$(git -C "${REPO_ROOT}" describe --tags --exact-match 2>/dev/null || true)"
+    printf 'commit=%s\n' "$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || true)"
+    printf 'installed_at=%s\n' "$(date -Iseconds)"
+    printf 'repo=%s\n' "$(git -C "${REPO_ROOT}" config --get remote.origin.url 2>/dev/null || echo "https://github.com/jpereiratrindade/morfocampo.git")"
+  } > "${STATE_DIR}/installed-version.txt"
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${STATE_DIR}/installed-version.txt"
+  chmod 0644 "${STATE_DIR}/installed-version.txt"
 }
 
 configure_hostname() {
@@ -217,6 +233,7 @@ enable_service() {
   echo "==> Habilitando serviço morfocampo"
   systemctl daemon-reload
   systemctl enable --now morfocampo
+  systemctl enable --now morfocampo-update.timer
 }
 
 write_summary() {
@@ -242,6 +259,11 @@ Log de instalação:
 
 Backup manual:
   sudo morfocampo-backup
+
+Atualização:
+  sudo morfocampo-update
+  sudo systemctl status morfocampo-update.timer
+  Log: ${STATE_DIR}/update.log
 EOF
 
   chown "${SERVICE_USER}:${SERVICE_USER}" "${INFO_FILE}"
@@ -259,6 +281,7 @@ build_app
 preload_whisper_model
 generate_cert
 install_config
+record_installed_version
 configure_hostname
 configure_hotspot
 enable_service

@@ -1,0 +1,17 @@
+[Unit]
+Description=Morfocampo guarded updater
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/morfocampo/morfonode.env
+ExecStart=/usr/local/bin/morfocampo-update --auto
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/opt/morfocampo /opt/morfocampo-venv /var/lib/morfocampo /run/lock

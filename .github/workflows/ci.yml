@@ -42,6 +42,7 @@ jobs:
           bash -n deploy/install_morfonode.sh
           bash -n deploy/configure_mdns_alias.sh
           bash -n deploy/backup_morfonode.sh
+          bash -n deploy/update_morfonode.sh
 
       - name: Check whitespace
         run: git diff --check

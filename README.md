@@ -143,6 +143,14 @@ sudo deploy/install_morfonode.sh
 
 Depois da instalação, o Raspberry deve iniciar o serviço automaticamente no boot e criar o Wi-Fi de campo.
 
+O MorfoNode também instala um atualizador protegido. Por padrão ele fica em modo somente manual:
+
+```bash
+sudo morfocampo-update
+```
+
+A atualização automática pode ser habilitada em `/etc/morfocampo/morfonode.env` com `MORFOCAMPO_UPDATE_ENABLED=1`. O atualizador só instala tags `v*`, exige CI aprovado no GitHub Actions para o commit candidato, faz backup antes da troca, compila e testa em staging, reinicia o serviço e tenta restaurar a versão anterior se a nova não subir. Detalhes operacionais estão em `deploy/README_MORFONODE.md`.
+
 ## Protocolo De Voz
 
 Exemplo de frase completa:

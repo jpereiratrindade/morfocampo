@@ -43,6 +43,7 @@ O instalador faz:
 - instala `faster-whisper` e baixa o modelo de transcrição;
 - salva um resumo em `/var/lib/morfocampo/morfonode-info.txt`;
 - instala o comando `morfocampo-backup`;
+- instala o comando `morfocampo-update` e um timer de verificação segura;
 - habilita o serviço na inicialização.
 
 Variáveis úteis:
@@ -57,6 +58,10 @@ Variáveis úteis:
 | `MORFOCAMPO_PORT` | `8011` | Porta HTTPS |
 | `MORFOCAMPO_WHISPER_MODEL` | `small` | Modelo de transcrição offline |
 | `MORFOCAMPO_SKIP_WHISPER_DOWNLOAD` | `0` | Use `1` para não baixar o modelo na instalação |
+| `MORFOCAMPO_UPDATE_ENABLED` | `0` | Use `1` para permitir atualização automática pelo timer |
+| `MORFOCAMPO_UPDATE_REPO` | GitHub do projeto | Repositório usado pelo atualizador |
+| `MORFOCAMPO_UPDATE_REQUIRE_CI` | `1` | Exige GitHub Actions aprovado para a tag candidata |
+| `MORFOCAMPO_UPDATE_RUN_TESTS` | `1` | Roda testes e checagens de sintaxe antes de instalar |
 
 Exemplo com senha e token definidos:
 
@@ -103,6 +108,9 @@ hostname -I
 - Certificados locais: `/var/lib/morfocampo/certs/`
 - Resumo de acesso: `/var/lib/morfocampo/morfonode-info.txt`
 - Log de instalação: `/var/lib/morfocampo/install.log`
+- Log de atualização: `/var/lib/morfocampo/update.log`
+- Versão instalada: `/var/lib/morfocampo/installed-version.txt`
+- Backups de código para rollback: `/var/lib/morfocampo/code-backups/`
 
 Esses arquivos devem entrar na rotina de backup/exportação do equipamento.
 
@@ -124,6 +132,59 @@ Também é possível executar o script diretamente a partir do repositório:
 
 ```bash
 sudo deploy/backup_morfonode.sh
+```
+
+## Atualização Segura
+
+O MorfoNode foi desenhado para operar offline. Por isso, a atualização automática fica instalada, mas desabilitada por padrão. O timer pode rodar sem risco: enquanto `MORFOCAMPO_UPDATE_ENABLED=0`, ele apenas registra no log que não deve atualizar.
+
+Para atualizar manualmente:
+
+```bash
+sudo morfocampo-update
+```
+
+Para permitir verificação automática diária, edite `/etc/morfocampo/morfonode.env`:
+
+```bash
+MORFOCAMPO_UPDATE_ENABLED=1
+```
+
+Depois recarregue o timer:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart morfocampo-update.timer
+```
+
+O fluxo de proteção é:
+
+1. verifica se há internet real antes de tentar qualquer operação;
+2. usa somente tags `v*` do repositório configurado, não uma branch em movimento;
+3. consulta o GitHub Actions e exige ao menos um workflow concluído com sucesso para o commit da tag;
+4. constrói a versão candidata fora de `/opt/morfocampo`;
+5. roda CTest e checagem de sintaxe Python quando `MORFOCAMPO_UPDATE_RUN_TESTS=1`;
+6. atualiza dependências Python antes da troca do código;
+7. executa `morfocampo-backup` antes de instalar;
+8. guarda um backup do código anterior;
+9. para o serviço principal somente na etapa final;
+10. reinicia e valida se `morfocampo.service` ficou ativo;
+11. em falha durante a troca ou inicialização, restaura o código anterior e tenta subir o serviço antigo.
+
+Comandos úteis:
+
+```bash
+sudo systemctl status morfocampo-update.timer
+sudo systemctl start morfocampo-update.service
+sudo journalctl -u morfocampo-update -n 100
+sudo tail -f /var/lib/morfocampo/update.log
+cat /var/lib/morfocampo/installed-version.txt
+```
+
+Se o GitHub limitar chamadas anônimas ou o repositório for privado, defina um token com escopo mínimo em `/etc/morfocampo/morfonode.env`:
+
+```bash
+MORFOCAMPO_GITHUB_TOKEN=ghp_token_com_escopo_minimo
 ```
 
 ## Segurança Operacional
