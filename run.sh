@@ -10,13 +10,14 @@ BIN="$ROOT/build/morfocampo"
 WEB="$ROOT/web"
 DB="$WEB/campo.db"
 PORT=8011
-HOST="0.0.0.0"
+HOST="${MORFOCAMPO_HOST:-0.0.0.0}"
 LOCAL_NAME="${MORFOCAMPO_LOCAL_NAME:-morfocampo.local}"
 HOSTNAME_LOCAL="$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)"
 HOSTNAME_LOCAL="${HOSTNAME_LOCAL%%.*}"
 if [[ -n "$HOSTNAME_LOCAL" ]]; then
   HOSTNAME_LOCAL="$HOSTNAME_LOCAL.local"
 fi
+PUBLISHED_HOSTNAME_LOCAL="$HOSTNAME_LOCAL"
 CERT="$WEB/cert.pem"
 KEY="$WEB/key.pem"
 
@@ -39,15 +40,27 @@ pip install -q -r "$WEB/requirements.txt"
 echo -e "${GREEN}✓  Dependências OK${RESET}"
 
 # ── 3. Descobre o IP da rede local ────────────────────────
-LOCAL_IP=$(ip addr show 2>/dev/null \
+LOCAL_IP=$(ip -4 route get 1.1.1.1 2>/dev/null \
+  | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')
+
+if [[ -z "$LOCAL_IP" ]]; then
+  LOCAL_IP=$(ip -4 addr show scope global 2>/dev/null \
   | grep "inet " \
   | grep -v "127.0.0.1" \
   | awk '{print $2}' \
   | cut -d/ -f1 \
   | head -1)
+fi
 
 if [[ -z "$LOCAL_IP" ]]; then
-  LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+  LOCAL_IP=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.' | head -1)
+fi
+
+if [[ -n "$HOSTNAME_LOCAL" ]] && command -v avahi-resolve-host-name >/dev/null 2>&1; then
+  RESOLVED_HOSTNAME_LOCAL=$(timeout 2 avahi-resolve-host-name "$HOSTNAME_LOCAL" 2>/dev/null | awk 'NR == 1 {print $1}' || true)
+  if [[ -n "$RESOLVED_HOSTNAME_LOCAL" ]]; then
+    PUBLISHED_HOSTNAME_LOCAL="$RESOLVED_HOSTNAME_LOCAL"
+  fi
 fi
 
 # ── 4. Gera certificado SSL temporário (necessário p/ microfone)
@@ -58,6 +71,8 @@ elif ! openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null | grep -q
   NEEDS_CERT=1
 elif [[ -n "$HOSTNAME_LOCAL" ]] && ! openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$HOSTNAME_LOCAL"; then
   NEEDS_CERT=1
+elif [[ -n "$PUBLISHED_HOSTNAME_LOCAL" ]] && ! openssl x509 -in "$CERT" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:$PUBLISHED_HOSTNAME_LOCAL"; then
+  NEEDS_CERT=1
 fi
 
 if [[ "$NEEDS_CERT" -eq 1 ]]; then
@@ -65,6 +80,9 @@ if [[ "$NEEDS_CERT" -eq 1 ]]; then
   SAN="DNS:$LOCAL_NAME,DNS:localhost,IP:127.0.0.1"
   if [[ -n "$HOSTNAME_LOCAL" && "$HOSTNAME_LOCAL" != "$LOCAL_NAME" ]]; then
     SAN="$SAN,DNS:$HOSTNAME_LOCAL"
+  fi
+  if [[ -n "$PUBLISHED_HOSTNAME_LOCAL" && "$PUBLISHED_HOSTNAME_LOCAL" != "$LOCAL_NAME" && "$PUBLISHED_HOSTNAME_LOCAL" != "$HOSTNAME_LOCAL" ]]; then
+    SAN="$SAN,DNS:$PUBLISHED_HOSTNAME_LOCAL"
   fi
   if [[ -n "$LOCAL_IP" ]]; then
     SAN="$SAN,IP:$LOCAL_IP"
@@ -86,12 +104,16 @@ echo -e "   Nome local:     ${CYAN}https://$LOCAL_NAME:$PORT${RESET}"
 if [[ -n "$HOSTNAME_LOCAL" && "$HOSTNAME_LOCAL" != "$LOCAL_NAME" ]]; then
   echo -e "   Host atual:     ${CYAN}https://$HOSTNAME_LOCAL:$PORT${RESET}"
 fi
+if [[ -n "$PUBLISHED_HOSTNAME_LOCAL" && "$PUBLISHED_HOSTNAME_LOCAL" != "$HOSTNAME_LOCAL" && "$PUBLISHED_HOSTNAME_LOCAL" != "$LOCAL_NAME" ]]; then
+  echo -e "   mDNS publicado: ${CYAN}https://$PUBLISHED_HOSTNAME_LOCAL:$PORT${RESET}"
+fi
 if [[ -n "$LOCAL_IP" ]]; then
   echo -e "   Acesso celular: ${CYAN}https://$LOCAL_IP:$PORT${RESET}  ← copie para o celular"
   echo -e "   ${YELLOW}Nota: No celular, o aviso 'Sua conexão não é particular' é esperado.${RESET}"
   echo -e "         Clique em 'Avançado' -> 'Ir para $LOCAL_IP (inseguro)' para liberar o microfone."
 fi
 echo -e "   ${YELLOW}Para o celular resolver $LOCAL_NAME, use o MorfoNode com Avahi/mDNS ou configure o hostname do equipamento como 'morfocampo'.${RESET}"
+echo -e "   ${YELLOW}Se um nome .local falhar nesta máquina, use o IP acima; mDNS pode variar por firewall, IPv6 ou conflito de hostname.${RESET}"
 echo ""
 
 # ── 6. Inicia servidor ────────────────────────────────────
