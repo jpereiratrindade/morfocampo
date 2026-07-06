@@ -30,7 +30,7 @@ Para a interface web:
 - Dependências listadas em `web/requirements.txt`
 - `openssl`, quando for usar HTTPS local pelo `run.sh`
 
-A transcrição offline usa `faster-whisper`. O modelo padrão é `small` e pode ser alterado com `MORFOCAMPO_WHISPER_MODEL`. Em instalação MorfoNode, o instalador baixa o modelo antes do uso em campo.
+A transcrição offline usa `faster-whisper`. O modelo padrão é `small` e pode ser alterado com `MORFOCAMPO_WHISPER_MODEL`. Em instalação MorfoNode, o instalador baixa o modelo antes do uso em campo. Se o Hugging Face limitar downloads anônimos, use `MORFOCAMPO_HF_TOKEN` somente durante a instalação.
 
 ## Build
 
@@ -134,6 +134,8 @@ Para proteger rotas `/api` em rede local, defina um token antes de iniciar:
 ```bash
 MORFOCAMPO_AUTH_TOKEN='token-longo-local' ./run.sh
 ```
+
+Esse token local é separado de `MORFOCAMPO_HF_TOKEN`, usado apenas para download de modelo no instalador MorfoNode.
 
 Mais detalhes estão em `web/README_WEB.md`.
 

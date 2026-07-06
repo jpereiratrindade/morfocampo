@@ -39,7 +39,7 @@ O instalador faz:
 - instala serviço `systemd`;
 - configura hostname `morfocampo`;
 - cria hotspot Wi-Fi persistente `MORFOCAMPO` via NetworkManager;
-- gera um token local para proteger as rotas `/api`;
+- configura autenticação local da API quando `MORFOCAMPO_AUTH_TOKEN` é informado;
 - instala `faster-whisper` e baixa o modelo de transcrição;
 - salva um resumo em `/var/lib/morfocampo/morfonode-info.txt`;
 - instala o comando `morfocampo-backup`;
@@ -53,10 +53,11 @@ Variáveis úteis:
 | `MORFOCAMPO_WIFI_SSID` | `MORFOCAMPO` | Nome do Wi-Fi criado pelo Raspberry |
 | `MORFOCAMPO_WIFI_PASSWORD` | `morfocampo2026` | Senha WPA do hotspot |
 | `MORFOCAMPO_WIFI_IFACE` | auto | Interface Wi-Fi, ex: `wlan0` |
-| `MORFOCAMPO_AUTH_TOKEN` | gerado | Token local da API |
+| `MORFOCAMPO_AUTH_TOKEN` | vazio | Token local opcional da API; vazio desativa a exigência de token |
 | `MORFOCAMPO_HOSTNAME` | `morfocampo` | Hostname publicado como `morfocampo.local` |
 | `MORFOCAMPO_PORT` | `8011` | Porta HTTPS |
 | `MORFOCAMPO_WHISPER_MODEL` | `small` | Modelo de transcrição offline |
+| `MORFOCAMPO_HF_TOKEN` | vazio | Token opcional do Hugging Face usado só para baixar o modelo Whisper |
 | `MORFOCAMPO_QR_URL` | `https://morfocampo.local:8011` | Endereço codificado no QR code persistente |
 | `MORFOCAMPO_SKIP_WHISPER_DOWNLOAD` | `0` | Use `1` para não baixar o modelo na instalação |
 | `MORFOCAMPO_UPDATE_ENABLED` | `0` | Use `1` para permitir atualização automática pelo timer |
@@ -64,11 +65,20 @@ Variáveis úteis:
 | `MORFOCAMPO_UPDATE_REQUIRE_CI` | `1` | Exige GitHub Actions aprovado para a tag candidata |
 | `MORFOCAMPO_UPDATE_RUN_TESTS` | `1` | Roda testes e checagens de sintaxe antes de instalar |
 
-Exemplo com senha e token definidos:
+Exemplo com senha do hotspot e token do Hugging Face para baixar o modelo:
 
 ```bash
 sudo MORFOCAMPO_WIFI_PASSWORD='senha-com-8-ou-mais-caracteres' \
-     MORFOCAMPO_AUTH_TOKEN='token-longo-local' \
+     MORFOCAMPO_HF_TOKEN='hf_token_novo' \
+     deploy/install_morfonode.sh
+```
+
+Para proteger também as rotas `/api`, defina um token local separado:
+
+```bash
+sudo MORFOCAMPO_WIFI_PASSWORD='senha-com-8-ou-mais-caracteres' \
+     MORFOCAMPO_AUTH_TOKEN='token-local-longo' \
+     MORFOCAMPO_HF_TOKEN='hf_token_novo' \
      deploy/install_morfonode.sh
 ```
 
@@ -78,7 +88,7 @@ Se a interface Wi-Fi não for detectada automaticamente:
 sudo MORFOCAMPO_WIFI_IFACE=wlan0 deploy/install_morfonode.sh
 ```
 
-Quando o token está ativo, o navegador pede o token no primeiro acesso às rotas protegidas e o salva no `localStorage` do aparelho.
+Quando `MORFOCAMPO_AUTH_TOKEN` está ativo, o navegador pede o token no primeiro acesso às rotas protegidas e o salva no `localStorage` do aparelho. O `MORFOCAMPO_HF_TOKEN` não é usado pelo app web e não deve ser confundido com o token local da API.
 
 ## QR Code De Acesso
 

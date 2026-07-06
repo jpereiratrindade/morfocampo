@@ -52,6 +52,8 @@ MORFOCAMPO_AUTH_TOKEN='token-longo-local' python server.py \
 
 Quando o token está ativo, o frontend envia `X-Morfocampo-Token` nas chamadas da API. No primeiro acesso protegido, o navegador solicita o token e o salva localmente no aparelho.
 
+Esse token local não é o token do Hugging Face. Para autenticar downloads de modelo no MorfoNode, use `MORFOCAMPO_HF_TOKEN` ao rodar o instalador.
+
 ## Acessar no celular
 
 O celular deve estar na mesma rede WiFi do notebook (ou conectado via USB tethering).

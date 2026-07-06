@@ -21,6 +21,7 @@ HOSTNAME_TARGET="${MORFOCAMPO_HOSTNAME:-morfocampo}"
 PORT="${MORFOCAMPO_PORT:-8011}"
 WHISPER_MODEL="${MORFOCAMPO_WHISPER_MODEL:-small}"
 SKIP_WHISPER_DOWNLOAD="${MORFOCAMPO_SKIP_WHISPER_DOWNLOAD:-0}"
+HF_TOKEN_FOR_DOWNLOAD="${MORFOCAMPO_HF_TOKEN:-${HF_TOKEN:-}}"
 LOG_FILE="${STATE_DIR}/install.log"
 INFO_FILE="${STATE_DIR}/morfonode-info.txt"
 QR_URL="${MORFOCAMPO_QR_URL:-https://morfocampo.local:${PORT}}"
@@ -111,9 +112,6 @@ create_user_and_dirs() {
   fi
 
   mkdir -p "${STATE_DIR}/audio_files" "${STATE_DIR}/certs" "${CONFIG_DIR}"
-  if [[ -z "${AUTH_TOKEN}" ]]; then
-    AUTH_TOKEN="$(openssl rand -hex 16)"
-  fi
 }
 
 install_code() {
@@ -146,7 +144,10 @@ preload_whisper_model() {
   fi
 
   echo "==> Baixando modelo faster-whisper (${WHISPER_MODEL})"
-  MORFOCAMPO_WHISPER_MODEL="${WHISPER_MODEL}" "${VENV_DIR}/bin/python" - <<'PY'
+  if [[ -n "${HF_TOKEN_FOR_DOWNLOAD}" ]]; then
+    echo "    usando MORFOCAMPO_HF_TOKEN/HF_TOKEN para autenticar o download"
+  fi
+  MORFOCAMPO_WHISPER_MODEL="${WHISPER_MODEL}" HF_TOKEN="${HF_TOKEN_FOR_DOWNLOAD}" "${VENV_DIR}/bin/python" - <<'PY'
 import os
 from faster_whisper import WhisperModel
 
@@ -271,7 +272,7 @@ URL principal: https://morfocampo.local:${PORT}
 URL por IP: https://${ip_addr:-IP_DO_RASPBERRY}:${PORT}
 QR code: ${QR_SVG}
 URL do QR code: ${QR_URL}
-Token local: ${AUTH_TOKEN}
+Token local: ${AUTH_TOKEN:-desativado}
 Modelo Whisper: ${WHISPER_MODEL}
 
 Serviço:
