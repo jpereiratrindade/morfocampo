@@ -36,6 +36,7 @@ const $ = id => document.getElementById(id);
 const show = id => { $(id).classList.add("active"); };
 const hide = id => { $(id).classList.remove("active"); };
 const AUTH_STORAGE_KEY = "morfocampo_auth_token";
+const PRIVACY_NOTICE_KEY = "morfocampo_privacy_notice_v1";
 
 function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -91,6 +92,22 @@ function requestAuthToken() {
     return true;
   }
   return false;
+}
+
+function showPrivacyNoticeIfNeeded() {
+  if (localStorage.getItem(PRIVACY_NOTICE_KEY) === "accepted") return;
+  const notice = $("privacy-notice");
+  if (notice) notice.classList.remove("hidden");
+}
+
+function acceptPrivacyNotice() {
+  localStorage.setItem(PRIVACY_NOTICE_KEY, "accepted");
+  const notice = $("privacy-notice");
+  if (notice) notice.classList.add("hidden");
+}
+
+function openPrivacyDetails() {
+  window.open("/static/privacy.html", "_blank", "noopener");
 }
 
 async function apiFetch(path, opts = {}, retryAuth = true) {
@@ -316,7 +333,7 @@ async function openAdmin(campaignId) {
             const flag = r.confidence_flag || "ok";
             const cap = r.cap_cm ? `CAP ${r.cap_cm.toFixed(1)}` : "";
             const dap = r.dap_cm ? `DAP ${r.dap_cm.toFixed(1)}` : "";
-            // Pills IRDER
+            // Pills de descritores silvipastoris
             const irderPills = [
               r.stem_height_m        != null ? `HF ${r.stem_height_m}m` : null,
               r.crown_insertion_m    != null ? `HIC ${r.crown_insertion_m}m` : null,
@@ -733,7 +750,7 @@ function renderParsedFields(rec) {
     `<div style="font-size:0.8rem;color:var(--amber);margin-top:6px">⚠ ${w}</div>`
   ).join("");
 
-  // Campos IRDER — só renderiza se houver algum preenchido
+  // Descritores silvipastoris adicionais: só renderiza se houver algum preenchido.
   const irderFields = [
     { key: "stem_height_m",        label: "Alt. Fuste HF (m)" },
     { key: "crown_insertion_m",    label: "Alt. Inserção Copa HIC (m)" },
@@ -754,7 +771,7 @@ function renderParsedFields(rec) {
   const irderSection = irderCells ? `
     <details style="margin-top:10px">
       <summary style="cursor:pointer;font-size:0.8rem;font-weight:600;color:var(--irder);user-select:none;padding:4px 0">
-        🌳 Protocolo IRDER
+        🌳 Descritores silvipastoris
       </summary>
       <div class="fields-grid" style="margin-top:8px">${irderCells}</div>
     </details>` : "";
@@ -869,7 +886,7 @@ function renderRecordList(records) {
     const dap  = r.dap_cm ? `DAP ${r.dap_cm.toFixed(1)} cm` : "";
     const meas = [cap, dap].filter(Boolean).join(" · ");
 
-    // Campos IRDER adicionais (só mostra os preenchidos)
+    // Descritores silvipastoris adicionais (só mostra os preenchidos)
     const irderPills = [
       r.stem_height_m        != null ? `HF ${r.stem_height_m} m` : null,
       r.crown_insertion_m    != null ? `HIC ${r.crown_insertion_m} m` : null,
@@ -998,7 +1015,7 @@ async function exportCampaign() {
   }
 }
 
-// ─── Modal IRDER ──────────────────────────────────────────────────────────────
+// ─── Modal de importação CSV silvipastoril ────────────────────────────────────
 
 function openIrderModal() {
   const obs = State.session.observer || localStorage.getItem("morfocampo_global_observer") || "";
@@ -1059,7 +1076,7 @@ async function submitIrderImport() {
       </div>`;
     $("irder-result").style.display = "block";
 
-    toast(`IRDER: ${data.inserted} registro(s) importado(s)`, "success", 5000);
+    toast(`${data.inserted} registro(s) importado(s)`, "success", 5000);
     btn.textContent = "✓ Concluído";
 
     // Recarrega a tela admin para mostrar os novos registros
@@ -1086,6 +1103,7 @@ async function submitIrderImport() {
 async function init() {
   showScreen("home");
   loadGlobalObserver();
+  showPrivacyNoticeIfNeeded();
   await loadCampaigns();
 
   // Checa status do servidor (binário C++ e transcrição)

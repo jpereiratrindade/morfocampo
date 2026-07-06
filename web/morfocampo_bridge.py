@@ -181,7 +181,7 @@ class MorfocampoBridge:
                 if key in {"cap_cm", "dap_cm", "total_height_m",
                            "crown_height_m", "crown_diameter_ns_m",
                            "crown_diameter_ew_m", "latitude", "longitude",
-                           # Campos IRDER numéricos
+                           # Descritores silvipastoris numéricos
                            "stem_height_m", "crown_insertion_m"}:
                     try:
                         parsed[key] = float(val) if val else None
@@ -198,14 +198,14 @@ class MorfocampoBridge:
         return rows
 
     # ------------------------------------------------------------------
-    # import_irder — importa CSV do protocolo IRDER
+    # import_irder — endpoint legado para importar CSV silvipastoril
     # ------------------------------------------------------------------
 
     def import_irder(self, csv_bytes: bytes, filename: str,
                      project_id: str, campaign_id: str,
                      area: str, observer: str = "") -> dict:
         """
-        Recebe bytes de um CSV IRDER, chama morfocampo import-irder
+        Recebe bytes de um CSV silvipastoril, chama morfocampo import-silvipastoril
         e retorna dict com records (lista de dicts) + issues.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -214,7 +214,7 @@ class MorfocampoBridge:
             input_file.write_bytes(csv_bytes)
 
             cmd = [
-                str(self.binary), "import-irder",
+                str(self.binary), "import-silvipastoril",
                 "--input",   str(input_file),
                 "--project", project_id,
                 "--campaign", campaign_id,
@@ -226,11 +226,13 @@ class MorfocampoBridge:
 
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
-            csv_out = out_dir / "arvores_irder.csv"
+            csv_out = out_dir / "arvores_silvipastoril.csv"
+            if not csv_out.exists():
+                csv_out = out_dir / "arvores_irder.csv"
             if not csv_out.exists():
                 return {
                     "ok": False,
-                    "error": result.stderr.strip() or "import-irder não gerou saída",
+                    "error": result.stderr.strip() or "import-silvipastoril não gerou saída",
                     "records": [],
                     "issues": [],
                 }

@@ -114,6 +114,18 @@ hostname -I
 
 Esses arquivos devem entrar na rotina de backup/exportação do equipamento.
 
+## Privacidade E LGPD
+
+O MorfoNode pode armazenar dados pessoais operacionais, especialmente nome ou identificação do observador, áudios, transcrições, registros de coleta e backups. O equipamento não usa cookies de rastreamento, mas o navegador do celular pode guardar token local, nome do observador e reconhecimento do aviso de privacidade em `localStorage`.
+
+Antes de usar em campanha real:
+
+1. defina quem é a instituição/controlador responsável pelos dados;
+2. informe a equipe de campo sobre identificação, áudio e transcrição;
+3. defina retenção, backup, descarte e acesso aos arquivos persistentes;
+4. proteja fisicamente o Raspberry Pi e os backups exportados;
+5. revise `PRIVACY_LGPD.md` na raiz do repositório.
+
 ## Backup
 
 Para criar um pacote local com banco, áudios, certificados e resumo de acesso:
@@ -189,4 +201,4 @@ MORFOCAMPO_GITHUB_TOKEN=ghp_token_com_escopo_minimo
 
 ## Segurança Operacional
 
-Este modo ainda pressupõe rede local confiável. A API usa token local simples, limites de upload e sanitização básica, mas uma release embarcada pública ainda deve passar por validação em Raspberry Pi real e revisão de operação.
+Este modo ainda pressupõe rede local confiável. A API usa token local simples, limites de upload e sanitização básica, mas uma release embarcada pública ainda deve passar por validação em Raspberry Pi real, revisão de operação e revisão institucional de privacidade/LGPD.

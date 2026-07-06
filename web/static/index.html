@@ -117,7 +117,7 @@
                 onclick="adminValidate()">▶ Validar campanha</button>
         <button class="btn btn-ghost" onclick="adminExport()" title="Exportar ZIP">⬇ Exportar</button>
         <button class="btn btn-ghost" style="color:var(--irder);border-color:var(--irder-border)"
-                onclick="openIrderModal()" title="Importar CSV do protocolo IRDER">🌳 IRDER</button>
+                onclick="openIrderModal()" title="Importar CSV silvipastoril">🌳 CSV</button>
       </div>
 
       <!-- Registros por observador -->
@@ -240,7 +240,7 @@
             <p>Para corrigir: <code>corrigir arvore A-023 CAP 43,0</code></p>
 
             <div style="margin-top:12px">
-              <strong style="color:var(--irder)">Campos IRDER suportados:</strong>
+              <strong style="color:var(--irder)">Descritores silvipastoris suportados:</strong>
               <ul style="margin-top:4px;padding-left:18px;color:var(--text-muted)">
                 <li><code>HF</code> ou <code>altura do fuste</code> (ex: HF 2,5)</li>
                 <li><code>HIC</code> ou <code>altura de inserção</code> (ex: HIC 1,5)</li>
@@ -311,7 +311,7 @@
 </div><!-- /app -->
 
 <!-- ═══════════════════════════════════════════════════
-     MODAL — Importação CSV IRDER
+     MODAL — Importação CSV silvipastoril
 ════════════════════════════════════════════════════ -->
 <div id="irder-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);overflow-y:auto;padding:16px">
   <div style="max-width:560px;margin:0 auto;background:var(--card);border:1px solid var(--irder-border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)">
@@ -319,7 +319,7 @@
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div>
-        <div style="font-size:1.1rem;font-weight:700;color:var(--irder)">🌳 Importar CSV IRDER</div>
+        <div style="font-size:1.1rem;font-weight:700;color:var(--irder)">🌳 Importar CSV silvipastoril</div>
         <div style="font-size:0.8rem;color:var(--text-dim);margin-top:2px">Planilha exportada do LibreOffice (separador <code>;</code> ou <code>,</code>)</div>
       </div>
       <button onclick="closeIrderModal()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;padding:4px">✕</button>
@@ -356,7 +356,7 @@
           </tbody>
         </table>
         <div style="font-size:0.72rem;color:var(--text-muted);margin-top:6px">
-          <span style="color:var(--irder)">■</span> Campos exclusivos do protocolo IRDER &nbsp;·&nbsp; Separador detectado automaticamente (<code>;</code> ou <code>,</code>)
+          <span style="color:var(--irder)">■</span> Descritores silvipastoris adicionais &nbsp;·&nbsp; Separador detectado automaticamente (<code>;</code> ou <code>,</code>)
         </div>
       </div>
     </details>
@@ -389,6 +389,21 @@
 
 <!-- Toast container -->
 <div id="toast-container" class="toast-container"></div>
+
+<div id="privacy-notice" class="privacy-notice hidden" role="dialog" aria-live="polite" aria-labelledby="privacy-title">
+  <div class="privacy-notice__content">
+    <div>
+      <div id="privacy-title" class="privacy-notice__title">Privacidade e armazenamento local</div>
+      <div class="privacy-notice__text">
+        O Morfocampo não usa cookies de rastreamento. Este aparelho pode guardar token local e nome do observador; o servidor local pode armazenar registros, transcrições e áudios da campanha.
+      </div>
+    </div>
+    <div class="privacy-notice__actions">
+      <button class="btn btn-ghost btn-sm" onclick="openPrivacyDetails()">Detalhes</button>
+      <button class="btn btn-primary btn-sm" onclick="acceptPrivacyNotice()">Entendi</button>
+    </div>
+  </div>
+</div>
 
 <script src="/static/app.js?v=20260703c"></script>
 </body>

@@ -13,7 +13,7 @@ O Morfocampo deve funcionar como infraestrutura de campo:
 - exportação auditável;
 - implantação embarcada em Raspberry Pi como MorfoNode.
 
-O protocolo IRDER é a primeira camada de coleta. A arquitetura deve continuar aberta para outros protocolos ambientais, como inventário florestal, solos, pastagens, biodiversidade, fauna e monitoramento participativo.
+A primeira camada de coleta cobre dados morfométricos e silvipastoris. A arquitetura deve continuar aberta para outros protocolos ambientais, como inventário florestal, solos, pastagens, biodiversidade, fauna e monitoramento participativo.
 
 ## Fase 1: Núcleo Reproduzível
 
@@ -38,8 +38,10 @@ Antes de tratar a web como release robusta, implementar:
 - escape seguro de HTML ao renderizar relatórios;
 - mensagens de erro auditáveis sem expor caminhos internos desnecessários;
 - documentação explícita de operação em rede confiável.
+- aviso de privacidade na interface e documentação LGPD operacional;
+- política institucional definida para retenção, descarte e atendimento a titulares quando houver dados pessoais.
 
-Status atual: hardening básico iniciado com token local opcional, limites de upload, sanitização de nomes de arquivo e escape no renderizador de relatórios.
+Status atual: hardening básico iniciado com token local opcional, limites de upload, sanitização de nomes de arquivo, escape no renderizador de relatórios, aviso de privacidade e documentação LGPD operacional.
 
 ## Fase 3: MorfoNode
 
@@ -62,10 +64,11 @@ Requisitos:
 - logs via `journalctl`;
 - firewall com portas mínimas abertas;
 - instalação documentada e repetível.
+- rotina de backup, retenção e descarte de banco, áudios e exportações.
 
 Artefatos iniciais ficam em `deploy/`.
 
-Status atual: instalador MorfoNode com checagens básicas, hotspot persistente via NetworkManager, serviço `systemd`, token local, log de instalação, resumo de acesso em `/var/lib/morfocampo/morfonode-info.txt` e backup manual via `morfocampo-backup`.
+Status atual: instalador MorfoNode com checagens básicas, hotspot persistente via NetworkManager, serviço `systemd`, token local, log de instalação, resumo de acesso em `/var/lib/morfocampo/morfonode-info.txt`, backup manual via `morfocampo-backup` e documentação de privacidade operacional.
 
 ## Fase 4: Atualização Operacional
 
@@ -119,3 +122,4 @@ Antes da primeira tag voltada a Raspberry Pi:
 5. hotspot próprio validado;
 6. backup/exportação documentados;
 7. recuperação básica documentada para falha de cartão SD ou banco.
+8. checklist LGPD revisado pela instituição responsável pela campanha.

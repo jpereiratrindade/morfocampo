@@ -32,8 +32,8 @@ void printHelp() {
         << "  morfocampo validate --input dados.csv --out out "
               "[--max-cap 600] [--max-dap 200] [--max-height 30] [--max-crown 20]\n"
         << "  morfocampo parse-transcript --input transcricoes.txt --out saida.csv\n"
-        << "  morfocampo import-irder --input dados_arboreto.csv --project IRDER-2026 "
-              "--campaign C01 --area \"Arboreto IRDER\" --out out/ [--observer \"Nome\"]\n"
+        << "  morfocampo import-silvipastoril --input dados_arboreto.csv --project MORFO-2026 "
+              "--campaign C01 --area \"Arboreto\" --out out/ [--observer \"Nome\"]\n"
         << "  morfocampo help\n\n"
         << "Na sessao interativa, prefixe a frase com 'corrigir' para substituir\n"
         << "o registro existente com o mesmo tree_id na sessao atual.\n";
@@ -388,7 +388,7 @@ int runSession(const std::vector<std::string>& args) {
     return 0;
 }
 
-int runImportIrder(const std::vector<std::string>& args) {
+int runImportSilvipastoril(const std::vector<std::string>& args) {
     const auto input    = optionValue(args, "--input");
     const auto project  = optionValue(args, "--project");
     const auto campaign = optionValue(args, "--campaign");
@@ -398,7 +398,7 @@ int runImportIrder(const std::vector<std::string>& args) {
 
     if (input.empty() || project.empty() || campaign.empty() || area.empty() || out_dir.empty()) {
         throw std::runtime_error(
-            "import-irder requer --input, --project, --campaign, --area e --out");
+            "import-silvipastoril requer --input, --project, --campaign, --area e --out");
     }
 
     auto imported   = morfocampo::irder::importIrder(input, project, campaign, area, observer);
@@ -410,12 +410,12 @@ int runImportIrder(const std::vector<std::string>& args) {
 
     const std::filesystem::path out_path(out_dir);
     std::filesystem::create_directories(out_path);
-    morfocampo::csv::writeTreesCsv(out_path / "arvores_irder.csv", normalized.records);
-    morfocampo::csv::writeTreesJsonl(out_path / "arvores_irder.jsonl", normalized.records);
+    morfocampo::csv::writeTreesCsv(out_path / "arvores_silvipastoril.csv", normalized.records);
+    morfocampo::csv::writeTreesJsonl(out_path / "arvores_silvipastoril.jsonl", normalized.records);
     morfocampo::report::writeValidationReport(
-        out_path / "relatorio_irder.md", normalized.records, issues);
+        out_path / "relatorio_silvipastoril.md", normalized.records, issues);
 
-    std::cout << "Importacao IRDER concluida em " << out_path << '\n';
+    std::cout << "Importacao silvipastoril concluida em " << out_path << '\n';
     std::cout << "  Registros: " << normalized.records.size() << '\n';
     std::cout << "  Avisos/Erros: " << issues.size() << '\n';
     for (const auto& issue : issues) {
@@ -453,8 +453,8 @@ int main(int argc, char** argv) {
         if (args[0] == "parse-transcript") {
             return runParseTranscript(args);
         }
-        if (args[0] == "import-irder") {
-            return runImportIrder(args);
+        if (args[0] == "import-silvipastoril" || args[0] == "import-irder") {
+            return runImportSilvipastoril(args);
         }
 
         printHelp();

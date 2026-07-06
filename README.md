@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/jpereiratrindade/morfocampo/actions/workflows/ci.yml/badge.svg)](https://github.com/jpereiratrindade/morfocampo/actions/workflows/ci.yml)
 
-`morfocampo` é uma ferramenta para coleta, normalização, importação e validação de dados morfométricos e silvipastoris em campo, com suporte ao protocolo IRDER.
+`morfocampo` é uma ferramenta para coleta, normalização, importação e validação de dados morfométricos e silvipastoris em campo.
 
 O projeto combina um núcleo C++20, usado pela CLI e pelos testes, com uma interface web mobile em Python/FastAPI para coleta em campo com SQLite, áudio e integração com o binário principal.
 
 ## Componentes
 
-- `src/` e `include/`: núcleo C++20, parser de voz, importador IRDER, validação, CSV e relatórios.
+- `src/` e `include/`: núcleo C++20, parser de voz, importadores CSV, validação e relatórios.
 - `tests/`: testes automatizados do núcleo.
 - `examples/`: arquivos pequenos para validar fluxos de entrada e saída.
 - `web/`: aplicação FastAPI, frontend mobile, persistência SQLite e bridge para o binário C++.
@@ -73,10 +73,11 @@ Converter transcrições em lote:
 ./build/morfocampo parse-transcript --input examples/transcricoes_exemplo.txt --out out/transcricao_convertida.csv
 ```
 
-Importar uma planilha IRDER:
+Importar uma planilha silvipastoril legada:
 
 ```bash
-./build/morfocampo import-irder --input planilha_irder.csv --out resultado_importado.csv
+./build/morfocampo import-silvipastoril --input planilha_silvipastoril.csv \
+  --project MORFO-2026 --campaign C01 --area "Arboreto" --out resultado_importado
 ```
 
 ## Interface Web
@@ -124,6 +125,12 @@ MORFOCAMPO_AUTH_TOKEN='token-longo-local' ./run.sh
 
 Mais detalhes estão em `web/README_WEB.md`.
 
+## Privacidade E LGPD
+
+O Morfocampo não usa cookies de rastreamento ou analytics. A interface web usa `localStorage` apenas para token local, nome do observador e reconhecimento do aviso de privacidade no aparelho.
+
+Como o sistema pode armazenar nome do observador, áudios, transcrições e registros de campo, a instituição responsável pela campanha deve definir base legal, informação aos participantes, retenção e descarte. Consulte `PRIVACY_LGPD.md` para o checklist operacional.
+
 ## MorfoNode
 
 O modo MorfoNode transforma um Raspberry Pi em um equipamento local de coleta:
@@ -165,7 +172,7 @@ O comando `corrigir` altera campos de um registro existente:
 corrigir arvore A-023 CAP 43,0
 ```
 
-Os descritores IRDER são opcionais e podem conviver com os campos dendrométricos tradicionais.
+Os descritores silvipastoris adicionais são opcionais e podem conviver com os campos dendrométricos tradicionais.
 
 ## Fluxo De Desenvolvimento
 
@@ -180,3 +187,7 @@ Antes de abrir uma tag ou release:
 ## Filosofia De Campo
 
 A interface digital complementa a coleta física, mas não substitui papel, marcações no terreno ou outros mecanismos de segurança documental. O objetivo é reduzir retrabalho de digitação, padronizar campos e facilitar validação rápida ao final do dia.
+
+## Licença
+
+Este projeto é distribuído sob a GNU General Public License v3.0 somente. Consulte `LICENSE` para o texto completo.

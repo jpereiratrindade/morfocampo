@@ -104,6 +104,16 @@ ip addr show | grep "inet " | grep -v 127.0.0.1
 - O campo `audio_file` vincula o registro ao arquivo de áudio.
 - O CSV exportado é compatível com `morfocampo validate` no terminal.
 
+## Privacidade, LGPD e armazenamento local
+
+- A aplicação não usa cookies HTTP, analytics ou rastreamento de terceiros.
+- O navegador usa `localStorage` para token local, nome do observador e reconhecimento do aviso de privacidade.
+- O servidor local armazena banco SQLite, áudios e exportações sob os caminhos configurados.
+- O operador deve informar a equipe sobre coleta de identificação, áudio e transcrição quando aplicável.
+- A política de retenção e descarte deve ser definida pela instituição responsável pela campanha.
+
+Consulte `../PRIVACY_LGPD.md` antes de operar o sistema em campanhas reais.
+
 ## Protocolo de fala para observadores
 
 ```
