@@ -20,6 +20,8 @@ fi
 PUBLISHED_HOSTNAME_LOCAL="$HOSTNAME_LOCAL"
 CERT="$WEB/cert.pem"
 KEY="$WEB/key.pem"
+SHOW_QR="${MORFOCAMPO_SHOW_QR:-1}"
+QR_URL="${MORFOCAMPO_QR_URL:-}"
 
 # ── Cores ────────────────────────────────────────────────
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; RESET='\033[0m'
@@ -94,6 +96,30 @@ if [[ "$NEEDS_CERT" -eq 1 ]]; then
 fi
 
 # ── 5. Informa endereços de acesso ───────────────────────
+print_qr_code() {
+  local url="$1"
+  if [[ "$SHOW_QR" != "1" ]]; then
+    return
+  fi
+  python3 - "$url" <<'PY'
+import sys
+
+try:
+    import qrcode
+except Exception as exc:
+    print(f"   QR code indisponível: instale a dependência Python 'qrcode' ({exc})")
+    raise SystemExit(0)
+
+url = sys.argv[1]
+qr = qrcode.QRCode(border=1)
+qr.add_data(url)
+qr.make(fit=True)
+print("")
+print(f"   QR code para acesso pelo celular: {url}")
+qr.print_ascii(out=sys.stdout, tty=sys.stdout.isatty())
+PY
+}
+
 echo ""
 echo -e "${GREEN}🌿 morfocampo web (Seguro/HTTPS)${RESET}"
 echo -e "   Banco:    ${CYAN}$DB${RESET}"
@@ -108,9 +134,11 @@ if [[ -n "$PUBLISHED_HOSTNAME_LOCAL" && "$PUBLISHED_HOSTNAME_LOCAL" != "$HOSTNAM
   echo -e "   mDNS publicado: ${CYAN}https://$PUBLISHED_HOSTNAME_LOCAL:$PORT${RESET}"
 fi
 if [[ -n "$LOCAL_IP" ]]; then
-  echo -e "   Acesso celular: ${CYAN}https://$LOCAL_IP:$PORT${RESET}  ← copie para o celular"
+  MOBILE_URL="https://$LOCAL_IP:$PORT"
+  echo -e "   Acesso celular: ${CYAN}$MOBILE_URL${RESET}  ← escaneie o QR code ou copie para o celular"
   echo -e "   ${YELLOW}Nota: No celular, o aviso 'Sua conexão não é particular' é esperado.${RESET}"
   echo -e "         Clique em 'Avançado' -> 'Ir para $LOCAL_IP (inseguro)' para liberar o microfone."
+  print_qr_code "${QR_URL:-$MOBILE_URL}"
 fi
 echo -e "   ${YELLOW}Para o celular resolver $LOCAL_NAME, use o MorfoNode com Avahi/mDNS ou configure o hostname do equipamento como 'morfocampo'.${RESET}"
 echo -e "   ${YELLOW}Se um nome .local falhar nesta máquina, use o IP acima; mDNS pode variar por firewall, IPv6 ou conflito de hostname.${RESET}"

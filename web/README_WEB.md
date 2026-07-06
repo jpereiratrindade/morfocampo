@@ -70,6 +70,8 @@ https://<IP-do-equipamento>:8011
 
 `localhost` só funciona no próprio equipamento que está rodando o servidor. No MorfoNode, o instalador configura hostname `morfocampo` e Avahi para publicar `morfocampo.local`. Em execução manual fora do Raspberry, o nome real da máquina também pode funcionar, como `fedora.local`. Use o IP se nenhum nome `.local` resolver.
 
+Ao iniciar pela raiz com `./run.sh`, o terminal imprime um QR code para o endereço por IP do equipamento. Escaneie com o celular na mesma rede. Defina `MORFOCAMPO_SHOW_QR=0` para ocultar o QR code ou `MORFOCAMPO_QR_URL` para escolher outro endereço.
+
 Para publicar `morfocampo.local` em uma máquina Linux de desenvolvimento:
 
 ```sh

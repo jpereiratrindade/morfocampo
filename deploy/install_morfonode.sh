@@ -23,6 +23,8 @@ WHISPER_MODEL="${MORFOCAMPO_WHISPER_MODEL:-small}"
 SKIP_WHISPER_DOWNLOAD="${MORFOCAMPO_SKIP_WHISPER_DOWNLOAD:-0}"
 LOG_FILE="${STATE_DIR}/install.log"
 INFO_FILE="${STATE_DIR}/morfonode-info.txt"
+QR_URL="${MORFOCAMPO_QR_URL:-https://morfocampo.local:${PORT}}"
+QR_SVG="${STATE_DIR}/morfonode-access-qr.svg"
 
 mkdir -p "${STATE_DIR}"
 touch "${LOG_FILE}"
@@ -199,6 +201,26 @@ record_installed_version() {
   chmod 0644 "${STATE_DIR}/installed-version.txt"
 }
 
+generate_access_qr() {
+  echo "==> Gerando QR code de acesso"
+  "${VENV_DIR}/bin/python" - "${QR_URL}" "${QR_SVG}" <<'PY'
+import sys
+
+import qrcode
+import qrcode.image.svg
+
+url, output = sys.argv[1], sys.argv[2]
+factory = qrcode.image.svg.SvgPathImage
+img = qrcode.make(url, image_factory=factory, border=2)
+with open(output, "wb") as fh:
+    img.save(fh)
+print(f"QR code salvo em: {output}")
+print(f"URL do QR code: {url}")
+PY
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${QR_SVG}"
+  chmod 0644 "${QR_SVG}"
+}
+
 configure_hostname() {
   echo "==> Configurando hostname local"
   hostnamectl set-hostname "${HOSTNAME_TARGET}"
@@ -247,6 +269,8 @@ Wi-Fi: ${SSID}
 Senha Wi-Fi: ${WIFI_PASSWORD}
 URL principal: https://morfocampo.local:${PORT}
 URL por IP: https://${ip_addr:-IP_DO_RASPBERRY}:${PORT}
+QR code: ${QR_SVG}
+URL do QR code: ${QR_URL}
 Token local: ${AUTH_TOKEN}
 Modelo Whisper: ${WHISPER_MODEL}
 
@@ -282,6 +306,7 @@ preload_whisper_model
 generate_cert
 install_config
 record_installed_version
+generate_access_qr
 configure_hostname
 configure_hotspot
 enable_service

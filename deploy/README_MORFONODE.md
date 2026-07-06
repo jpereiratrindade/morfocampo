@@ -57,6 +57,7 @@ Variáveis úteis:
 | `MORFOCAMPO_HOSTNAME` | `morfocampo` | Hostname publicado como `morfocampo.local` |
 | `MORFOCAMPO_PORT` | `8011` | Porta HTTPS |
 | `MORFOCAMPO_WHISPER_MODEL` | `small` | Modelo de transcrição offline |
+| `MORFOCAMPO_QR_URL` | `https://morfocampo.local:8011` | Endereço codificado no QR code persistente |
 | `MORFOCAMPO_SKIP_WHISPER_DOWNLOAD` | `0` | Use `1` para não baixar o modelo na instalação |
 | `MORFOCAMPO_UPDATE_ENABLED` | `0` | Use `1` para permitir atualização automática pelo timer |
 | `MORFOCAMPO_UPDATE_REPO` | GitHub do projeto | Repositório usado pelo atualizador |
@@ -78,6 +79,26 @@ sudo MORFOCAMPO_WIFI_IFACE=wlan0 deploy/install_morfonode.sh
 ```
 
 Quando o token está ativo, o navegador pede o token no primeiro acesso às rotas protegidas e o salva no `localStorage` do aparelho.
+
+## QR Code De Acesso
+
+O MorfoNode não depende de tela. Durante a instalação, o instalador gera um QR code persistente em:
+
+```text
+/var/lib/morfocampo/morfonode-access-qr.svg
+```
+
+Por padrão, ele aponta para:
+
+```text
+https://morfocampo.local:8011
+```
+
+Use esse arquivo para imprimir uma etiqueta e colar no Raspberry ou na caixa de campo. Se precisar apontar para outro endereço fixo, defina `MORFOCAMPO_QR_URL` ao instalar:
+
+```bash
+sudo MORFOCAMPO_QR_URL='https://morfocampo.local:8011' deploy/install_morfonode.sh
+```
 
 ## Serviço
 
@@ -107,6 +128,7 @@ hostname -I
 - Áudios: `/var/lib/morfocampo/audio_files/`
 - Certificados locais: `/var/lib/morfocampo/certs/`
 - Resumo de acesso: `/var/lib/morfocampo/morfonode-info.txt`
+- QR code de acesso: `/var/lib/morfocampo/morfonode-access-qr.svg`
 - Log de instalação: `/var/lib/morfocampo/install.log`
 - Log de atualização: `/var/lib/morfocampo/update.log`
 - Versão instalada: `/var/lib/morfocampo/installed-version.txt`

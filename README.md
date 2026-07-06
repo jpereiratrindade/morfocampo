@@ -111,6 +111,18 @@ https://<IP-do-equipamento>:8011
 
 O nome `morfocampo.local` depende de mDNS/Avahi e é configurado automaticamente no modo MorfoNode. Em uma máquina de desenvolvimento, o endereço pode ser o hostname real do computador, por exemplo `https://fedora.local:8011`. Use o IP informado pelo script se nenhum nome `.local` resolver. O aviso de certificado do navegador é esperado por se tratar de certificado local autoassinado.
 
+Quando houver IP local detectado, o `run.sh` também imprime um QR code no terminal para abrir o endereço no celular. Para ocultar o QR code:
+
+```bash
+MORFOCAMPO_SHOW_QR=0 ./run.sh
+```
+
+Para forçar outro endereço no QR code:
+
+```bash
+MORFOCAMPO_QR_URL='https://morfocampo.local:8011' ./run.sh
+```
+
 Em uma máquina de desenvolvimento Linux com Avahi, você pode publicar o alias local com:
 
 ```bash
@@ -149,6 +161,14 @@ sudo deploy/install_morfonode.sh
 ```
 
 Depois da instalação, o Raspberry deve iniciar o serviço automaticamente no boot e criar o Wi-Fi de campo.
+
+Como o MorfoNode normalmente opera sem tela, o instalador gera um QR code persistente em:
+
+```text
+/var/lib/morfocampo/morfonode-access-qr.svg
+```
+
+Por padrão esse QR code aponta para `https://morfocampo.local:8011`, adequado para imprimir uma etiqueta e colar no equipamento. Para outro endereço, defina `MORFOCAMPO_QR_URL` antes de rodar o instalador.
 
 O MorfoNode também instala um atualizador protegido. Por padrão ele fica em modo somente manual:
 
