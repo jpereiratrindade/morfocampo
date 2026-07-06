@@ -204,7 +204,14 @@ Antes de abrir uma tag ou release:
 2. compile com `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release`;
 3. rode `ctest --test-dir build --output-on-failure`;
 4. revise se apenas código, configurações, exemplos e documentação necessários estão versionados;
-5. crie a tag somente depois de validar o estado acima.
+5. crie ou atualize `RELEASE_NOTES_vX.Y.Z.md`;
+6. commite as notas de release junto com o estado que será versionado;
+7. envie `master` e aguarde o CI passar;
+8. crie a tag anotada `vX.Y.Z` somente depois de validar o estado acima;
+9. envie a tag e aguarde o CI da tag passar;
+10. crie a GitHub Release usando a tag e o conteúdo de `RELEASE_NOTES_vX.Y.Z.md`.
+
+Tags publicadas não devem ser movidas. Se uma tag sair sem algum ajuste documental, prefira corrigir em `master` e publicar uma nova versão patch.
 
 ## Filosofia De Campo
 
