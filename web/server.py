@@ -12,6 +12,7 @@ import argparse
 import os
 import re
 import secrets
+import subprocess
 import sys
 import zipfile
 import io
@@ -71,10 +72,62 @@ db.init_db(_conn)
 
 bridge = MorfocampoBridge(args.bin)
 
+
+def _parse_version_file(path: Path) -> dict:
+    values = {}
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            values[key.strip()] = value.strip()
+    except OSError:
+        return {}
+    return values
+
+
+def _git_value(*git_args: str) -> str:
+    repo_root = Path(__file__).resolve().parents[1]
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(repo_root), *git_args],
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=2,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def resolve_version_info() -> dict:
+    version_file = Path(
+        os.environ.get("MORFOCAMPO_VERSION_FILE", "/var/lib/morfocampo/installed-version.txt")
+    )
+    installed = _parse_version_file(version_file)
+    tag = installed.get("tag", "")
+    commit = installed.get("commit", "")
+    installed_at = installed.get("installed_at", "")
+
+    if not tag:
+        tag = _git_value("describe", "--tags", "--always", "--dirty") or "dev"
+    if not commit:
+        commit = _git_value("rev-parse", "--short", "HEAD")
+
+    return {
+        "version": tag,
+        "tag": tag,
+        "commit": commit,
+        "installed_at": installed_at,
+        "source": str(version_file) if installed else "git",
+    }
+
+
+VERSION_INFO = resolve_version_info()
+
 app = FastAPI(
     title="morfocampo Web",
     description="Coleta de dados morfométricos de campo com áudio e SQLite",
-    version="0.2.0",
+    version=VERSION_INFO["version"].lstrip("v"),
 )
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -134,7 +187,10 @@ async def root():
 async def status():
     return {
         "ok": True,
-        "version": "0.2.0",
+        "version": VERSION_INFO["version"],
+        "commit": VERSION_INFO["commit"],
+        "installed_at": VERSION_INFO["installed_at"],
+        "version_source": VERSION_INFO["source"],
         "db": DB_PATH,
         "binary": args.bin,
         "auth_required": bool(AUTH_TOKEN),

@@ -1109,6 +1109,7 @@ async function init() {
   // Checa status do servidor (binário C++ e transcrição)
   try {
     const status = await api("GET", "/api/status");
+    renderAppVersion(status);
     if (!status.transcription.available) {
       toast(
         "Transcrição offline indisponível — usando Web Speech API do browser",
@@ -1119,3 +1120,12 @@ async function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+function renderAppVersion(status) {
+  const badge = $("app-version");
+  if (!badge || !status) return;
+  const version = status.version || "dev";
+  const commit = status.commit ? ` ${status.commit.slice(0, 7)}` : "";
+  badge.textContent = version;
+  badge.title = `Versão do sistema: ${version}${commit}`;
+}

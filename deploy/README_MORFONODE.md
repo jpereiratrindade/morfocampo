@@ -120,7 +120,7 @@ Para gerar novamente os QR codes manualmente, use:
 sudo /opt/morfocampo/deploy/generate_morfonode_qr.py
 ```
 
-O script usa os mesmos padrões do MorfoNode: `MORFOCAMPO`, `labecomc`, `https://morfocampo.local:8011` e `/var/lib/morfocampo`. Em uma máquina de desenvolvimento sem `sudo`, ele salva em `./qr-codes`.
+O script usa os mesmos padrões do MorfoNode: `MORFOCAMPO`, `labecomc`, `https://morfocampo.local:8011` e `/var/lib/morfocampo`. Em uma máquina de desenvolvimento sem `sudo`, ele salva em `~/Downloads/morfocampo-qrcodes`.
 
 ## Serviço
 

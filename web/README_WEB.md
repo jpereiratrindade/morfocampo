@@ -148,3 +148,5 @@ POST /api/audio               (salva blob de áudio como evidência)
 ```
 
 Documentação interativa: `http://localhost:8000/docs`
+
+`GET /api/status` expõe `version`, `commit`, `installed_at` e `version_source`. No MorfoNode, esses campos vêm de `/var/lib/morfocampo/installed-version.txt`; em desenvolvimento, vêm de `git describe --tags --always --dirty`.

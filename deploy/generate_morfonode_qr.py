@@ -16,11 +16,18 @@ DEFAULT_HOSTNAME = "morfocampo"
 DEFAULT_SSID = "MORFOCAMPO"
 DEFAULT_WIFI_PASSWORD = "labecomc"
 DEFAULT_ROOT_OUTPUT_DIR = Path("/var/lib/morfocampo")
-DEFAULT_LOCAL_OUTPUT_DIR = Path("qr-codes")
+DEFAULT_LOCAL_OUTPUT_SUBDIR = "morfocampo-qrcodes"
 
 
 def env_value(name: str, default: str) -> str:
     return os.environ.get(name, default)
+
+
+def default_local_output_dir() -> Path:
+    downloads = os.environ.get("XDG_DOWNLOAD_DIR")
+    if downloads:
+        return Path(downloads).expanduser() / DEFAULT_LOCAL_OUTPUT_SUBDIR
+    return Path.home() / "Downloads" / DEFAULT_LOCAL_OUTPUT_SUBDIR
 
 
 def escape_wifi_field(value: str) -> str:
@@ -83,7 +90,7 @@ def parse_args() -> argparse.Namespace:
     if hasattr(os, "geteuid") and os.geteuid() == 0:
         default_output_dir = DEFAULT_ROOT_OUTPUT_DIR
     else:
-        default_output_dir = DEFAULT_LOCAL_OUTPUT_DIR
+        default_output_dir = default_local_output_dir()
 
     parser = argparse.ArgumentParser(
         description="Gera QR codes PNG/SVG para acesso headless ao MorfoNode."

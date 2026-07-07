@@ -216,6 +216,8 @@ Antes de abrir uma tag ou release:
 
 Tags publicadas não devem ser movidas. Se uma tag sair sem algum ajuste documental, prefira corrigir em `master` e publicar uma nova versão patch.
 
+Saídas locais de desenvolvimento que não fazem parte do projeto devem ficar em `tmp/` na raiz do repositório. O diretório é ignorado pelo Git e serve para testes, logs temporários, exportações locais e outros artefatos descartáveis. Arquivos destinados ao operador, como QR codes gerados manualmente, devem ir para `~/Downloads/morfocampo-qrcodes` por padrão.
+
 ## Filosofia De Campo
 
 A interface digital complementa a coleta física, mas não substitui papel, marcações no terreno ou outros mecanismos de segurança documental. O objetivo é reduzir retrabalho de digitação, padronizar campos e facilitar validação rápida ao final do dia.
