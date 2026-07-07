@@ -164,13 +164,16 @@ sudo deploy/install_morfonode.sh
 
 Depois da instalação, o Raspberry deve iniciar o serviço automaticamente no boot e criar o Wi-Fi de campo.
 
-Como o MorfoNode normalmente opera sem tela, o instalador gera um QR code persistente em:
+Como o MorfoNode normalmente opera sem tela, o instalador gera QR codes persistentes em:
 
 ```text
 /var/lib/morfocampo/morfonode-access-qr.svg
+/var/lib/morfocampo/morfonode-site-qr.png
+/var/lib/morfocampo/morfonode-access-qr.png
+/var/lib/morfocampo/morfonode-wifi-qr.png
 ```
 
-Por padrão esse QR code aponta para `https://morfocampo.local:8011`, adequado para imprimir uma etiqueta e colar no equipamento. Para outro endereço, defina `MORFOCAMPO_QR_URL` antes de rodar o instalador.
+Use `morfonode-wifi-qr.png` para conectar o celular à rede `MORFOCAMPO` e `morfonode-site-qr.png` para abrir `https://morfocampo.local:8011`. O QR do Wi-Fi pode aparecer no celular como opção de salvar/conectar rede; isso é esperado. Android/iOS podem exigir confirmação do usuário e não permitem que o QR habilite o Wi-Fi sozinho. Esses arquivos são adequados para imprimir etiquetas e colar no equipamento. Para outro endereço no QR do site, defina `MORFOCAMPO_QR_URL` antes de rodar o instalador.
 
 O MorfoNode também instala um atualizador protegido. Por padrão ele fica em modo somente manual:
 

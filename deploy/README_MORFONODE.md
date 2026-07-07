@@ -41,6 +41,7 @@ O instalador faz:
 - cria hotspot Wi-Fi persistente `MORFOCAMPO` via NetworkManager;
 - configura autenticação local da API quando `MORFOCAMPO_AUTH_TOKEN` é informado;
 - instala `faster-whisper` e baixa o modelo de transcrição;
+- gera QR codes persistentes para entrar no Wi-Fi e abrir o site;
 - salva um resumo em `/var/lib/morfocampo/morfonode-info.txt`;
 - instala o comando `morfocampo-backup`;
 - instala o comando `morfocampo-update` e um timer de verificação segura;
@@ -51,7 +52,7 @@ Variáveis úteis:
 | Variável | Padrão | Uso |
 |---|---:|---|
 | `MORFOCAMPO_WIFI_SSID` | `MORFOCAMPO` | Nome do Wi-Fi criado pelo Raspberry |
-| `MORFOCAMPO_WIFI_PASSWORD` | `morfocampo2026` | Senha WPA do hotspot |
+| `MORFOCAMPO_WIFI_PASSWORD` | `labecomc` | Senha WPA do hotspot |
 | `MORFOCAMPO_WIFI_IFACE` | auto | Interface Wi-Fi, ex: `wlan0` |
 | `MORFOCAMPO_AUTH_TOKEN` | vazio | Token local opcional da API; vazio desativa a exigência de token |
 | `MORFOCAMPO_HOSTNAME` | `morfocampo` | Hostname publicado como `morfocampo.local` |
@@ -92,23 +93,34 @@ Quando `MORFOCAMPO_AUTH_TOKEN` está ativo, o navegador pede o token no primeiro
 
 ## QR Code De Acesso
 
-O MorfoNode não depende de tela. Durante a instalação, o instalador gera um QR code persistente em:
+O MorfoNode não depende de tela. Durante a instalação, o instalador gera QR codes persistentes em:
 
 ```text
 /var/lib/morfocampo/morfonode-access-qr.svg
+/var/lib/morfocampo/morfonode-site-qr.png
+/var/lib/morfocampo/morfonode-access-qr.png
+/var/lib/morfocampo/morfonode-wifi-qr.png
 ```
 
-Por padrão, ele aponta para:
+Por padrão, o QR code de acesso aponta para:
 
 ```text
 https://morfocampo.local:8011
 ```
 
-Use esse arquivo para imprimir uma etiqueta e colar no Raspberry ou na caixa de campo. Se precisar apontar para outro endereço fixo, defina `MORFOCAMPO_QR_URL` ao instalar:
+Use os arquivos PNG para imprimir etiquetas e colar no Raspberry ou na caixa de campo: `morfonode-wifi-qr.png` oferece conexão ao Wi-Fi `MORFOCAMPO`; `morfonode-site-qr.png` abre o site. O QR do Wi-Fi pode aparecer no celular como opção de salvar/conectar rede; isso é esperado. Android/iOS podem exigir confirmação do usuário e não permitem que o QR habilite o Wi-Fi sozinho. Se precisar apontar o QR do site para outro endereço fixo, defina `MORFOCAMPO_QR_URL` ao instalar:
 
 ```bash
 sudo MORFOCAMPO_QR_URL='https://morfocampo.local:8011' deploy/install_morfonode.sh
 ```
+
+Para gerar novamente os QR codes manualmente, use:
+
+```bash
+sudo /opt/morfocampo/deploy/generate_morfonode_qr.py
+```
+
+O script usa os mesmos padrões do MorfoNode: `MORFOCAMPO`, `labecomc`, `https://morfocampo.local:8011` e `/var/lib/morfocampo`. Em uma máquina de desenvolvimento sem `sudo`, ele salva em `./qr-codes`.
 
 ## Serviço
 
@@ -139,6 +151,9 @@ hostname -I
 - Certificados locais: `/var/lib/morfocampo/certs/`
 - Resumo de acesso: `/var/lib/morfocampo/morfonode-info.txt`
 - QR code de acesso: `/var/lib/morfocampo/morfonode-access-qr.svg`
+- QR code PNG do site: `/var/lib/morfocampo/morfonode-site-qr.png`
+- QR code PNG do site (compatibilidade): `/var/lib/morfocampo/morfonode-access-qr.png`
+- QR code PNG do Wi-Fi: `/var/lib/morfocampo/morfonode-wifi-qr.png`
 - Log de instalação: `/var/lib/morfocampo/install.log`
 - Log de atualização: `/var/lib/morfocampo/update.log`
 - Versão instalada: `/var/lib/morfocampo/installed-version.txt`

@@ -14,7 +14,7 @@ CONFIG_DIR="${MORFOCAMPO_CONFIG_DIR:-/etc/morfocampo}"
 SERVICE_FILE="/etc/systemd/system/morfocampo.service"
 SERVICE_USER="morfocampo"
 SSID="${MORFOCAMPO_WIFI_SSID:-MORFOCAMPO}"
-WIFI_PASSWORD="${MORFOCAMPO_WIFI_PASSWORD:-morfocampo2026}"
+WIFI_PASSWORD="${MORFOCAMPO_WIFI_PASSWORD:-labecomc}"
 WIFI_IFACE="${MORFOCAMPO_WIFI_IFACE:-}"
 AUTH_TOKEN="${MORFOCAMPO_AUTH_TOKEN:-}"
 HOSTNAME_TARGET="${MORFOCAMPO_HOSTNAME:-morfocampo}"
@@ -26,6 +26,9 @@ LOG_FILE="${STATE_DIR}/install.log"
 INFO_FILE="${STATE_DIR}/morfonode-info.txt"
 QR_URL="${MORFOCAMPO_QR_URL:-https://morfocampo.local:${PORT}}"
 QR_SVG="${STATE_DIR}/morfonode-access-qr.svg"
+QR_SITE_NAMED_PNG="${STATE_DIR}/morfonode-site-qr.png"
+QR_SITE_PNG="${STATE_DIR}/morfonode-access-qr.png"
+QR_WIFI_PNG="${STATE_DIR}/morfonode-wifi-qr.png"
 
 mkdir -p "${STATE_DIR}"
 touch "${LOG_FILE}"
@@ -203,23 +206,16 @@ record_installed_version() {
 }
 
 generate_access_qr() {
-  echo "==> Gerando QR code de acesso"
-  "${VENV_DIR}/bin/python" - "${QR_URL}" "${QR_SVG}" <<'PY'
-import sys
-
-import qrcode
-import qrcode.image.svg
-
-url, output = sys.argv[1], sys.argv[2]
-factory = qrcode.image.svg.SvgPathImage
-img = qrcode.make(url, image_factory=factory, border=2)
-with open(output, "wb") as fh:
-    img.save(fh)
-print(f"QR code salvo em: {output}")
-print(f"URL do QR code: {url}")
-PY
-  chown "${SERVICE_USER}:${SERVICE_USER}" "${QR_SVG}"
-  chmod 0644 "${QR_SVG}"
+  echo "==> Gerando QR codes de acesso"
+  "${VENV_DIR}/bin/python" "${INSTALL_DIR}/deploy/generate_morfonode_qr.py" \
+    --url "${QR_URL}" \
+    --ssid "${SSID}" \
+    --password "${WIFI_PASSWORD}" \
+    --security WPA \
+    --output-dir "${STATE_DIR}" \
+    --prefix morfonode
+  chown "${SERVICE_USER}:${SERVICE_USER}" "${QR_SVG}" "${QR_SITE_NAMED_PNG}" "${QR_SITE_PNG}" "${QR_WIFI_PNG}"
+  chmod 0644 "${QR_SVG}" "${QR_SITE_NAMED_PNG}" "${QR_SITE_PNG}" "${QR_WIFI_PNG}"
 }
 
 configure_hostname() {
@@ -271,6 +267,9 @@ Senha Wi-Fi: ${WIFI_PASSWORD}
 URL principal: https://morfocampo.local:${PORT}
 URL por IP: https://${ip_addr:-IP_DO_RASPBERRY}:${PORT}
 QR code: ${QR_SVG}
+QR code PNG do site: ${QR_SITE_NAMED_PNG}
+QR code PNG do site (compatibilidade): ${QR_SITE_PNG}
+QR code PNG do Wi-Fi: ${QR_WIFI_PNG}
 URL do QR code: ${QR_URL}
 Token local: ${AUTH_TOKEN:-desativado}
 Modelo Whisper: ${WHISPER_MODEL}
