@@ -7,6 +7,8 @@ complementar ao registro em papel.
 """
 
 import sqlite3
+import csv
+import io
 import json
 from datetime import datetime
 from pathlib import Path
@@ -363,11 +365,53 @@ def export_csv_lines(conn: sqlite3.Connection, campaign_fk: int) -> list[str]:
             r.get("trait_1", ""),
             r.get("trait_2", ""),
         ]
-        # Escapar vírgulas em campos de texto
-        escaped = []
-        for field in row:
-            if "," in field or '"' in field or "\n" in field:
-                field = '"' + field.replace('"', '""') + '"'
-            escaped.append(field)
-        lines.append(",".join(escaped))
+        out = io.StringIO()
+        writer = csv.writer(out, lineterminator="")
+        writer.writerow(row)
+        lines.append(out.getvalue())
     return lines
+
+
+def export_campaign_sql(conn: sqlite3.Connection, campaign_fk: int) -> str:
+    """Retorna dump SQL autocontido para uma campanha e seus registros."""
+    camp = get_campaign(conn, campaign_fk)
+    if not camp:
+        return ""
+
+    lines = [
+        "-- Morfocampo campaign export",
+        f"-- project_id={camp['project_id']} campaign_id={camp['campaign_id']}",
+        "PRAGMA foreign_keys=OFF;",
+        "BEGIN TRANSACTION;",
+    ]
+    for table in ("campaigns", "tree_records", "validation_runs"):
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
+            (table,),
+        ).fetchone()
+        if row and row["sql"]:
+            lines.append(f"{row['sql']};")
+
+    def insert_statement(table: str, row: sqlite3.Row) -> str:
+        columns = row.keys()
+        quoted_columns = ", ".join(f'"{col}"' for col in columns)
+        values = ", ".join(
+            "NULL" if row[col] is None else conn.execute("SELECT quote(?)", (row[col],)).fetchone()[0]
+            for col in columns
+        )
+        return f'INSERT INTO "{table}" ({quoted_columns}) VALUES ({values});'
+
+    campaign_row = conn.execute("SELECT * FROM campaigns WHERE id=?", (campaign_fk,)).fetchone()
+    if campaign_row:
+        lines.append(insert_statement("campaigns", campaign_row))
+
+    for table in ("tree_records", "validation_runs"):
+        rows = conn.execute(
+            f"SELECT * FROM {table} WHERE campaign_fk=? ORDER BY id",
+            (campaign_fk,),
+        ).fetchall()
+        for row in rows:
+            lines.append(insert_statement(table, row))
+
+    lines.extend(["COMMIT;", "PRAGMA foreign_keys=ON;", ""])
+    return "\n".join(lines)

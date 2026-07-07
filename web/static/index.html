@@ -113,10 +113,12 @@
       <div id="admin-last-validation"></div>
 
       <!-- Ações rápidas -->
-      <div style="display:flex;gap:10px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button id="admin-validate-btn" class="btn btn-primary" style="flex:1"
                 onclick="adminValidate()">▶ Validar campanha</button>
-        <button class="btn btn-ghost" onclick="adminExport()" title="Exportar ZIP">⬇ Exportar</button>
+        <button class="btn btn-ghost" onclick="adminExportFormat('zip')" title="Exportar ZIP">⬇ ZIP</button>
+        <button class="btn btn-ghost" onclick="adminExportFormat('csv')" title="Exportar CSV">CSV</button>
+        <button class="btn btn-ghost" onclick="adminExportFormat('sql')" title="Exportar SQL">SQL</button>
         <button class="btn btn-ghost" style="color:var(--irder);border-color:var(--irder-border)"
                 onclick="openIrderModal()" title="Importar CSV silvipastoril">🌳 CSV</button>
       </div>
@@ -287,13 +289,15 @@
             Valida <strong style="color:var(--text)">todos os observadores</strong> da campanha
             (campos obrigatórios, faixas, duplicidades).
           </div>
-          <div style="display:flex;gap:10px">
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button id="validate-btn" class="btn btn-primary" style="flex:1" onclick="runValidation()">
               ▶ Validar campanha
             </button>
             <button class="btn btn-ghost" onclick="exportCampaign()" title="Exportar CSV + relatório">
-              ⬇ Exportar
+              ⬇ ZIP
             </button>
+            <button class="btn btn-ghost" onclick="adminExportFormat('csv')" title="Exportar CSV">CSV</button>
+            <button class="btn btn-ghost" onclick="adminExportFormat('sql')" title="Exportar SQL">SQL</button>
           </div>
         </div>
 

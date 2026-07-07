@@ -138,7 +138,9 @@ GET  /api/campaigns/{id}
 GET  /api/campaigns/{id}/records?observer=Pedro&plot=P01
 POST /api/campaigns/{id}/validate
 GET  /api/campaigns/{id}/validation/last
-GET  /api/campaigns/{id}/export
+GET  /api/campaigns/{id}/export       (ZIP com CSV, relatório e dump SQL)
+GET  /api/campaigns/{id}/export.csv   (CSV compatível com morfocampo validate)
+GET  /api/campaigns/{id}/export.sql   (dump SQLite da campanha)
 POST /api/transcribe          (áudio → texto via faster-whisper)
 POST /api/parse               (texto → campos morfométricos via C++)
 POST /api/records

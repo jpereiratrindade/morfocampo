@@ -422,12 +422,36 @@ async function downloadFile(url, fallbackName) {
 }
 
 async function adminExport() {
+  return adminExportFormat("zip");
+}
+
+async function adminExportFormat(format = "zip") {
   if (!State.currentCampaign) return;
+  const campaign = State.currentCampaign.campaign_id || "export";
+  const formats = {
+    zip: {
+      path: "export",
+      extension: "zip",
+      label: "pacote ZIP",
+    },
+    csv: {
+      path: "export.csv",
+      extension: "csv",
+      label: "CSV",
+    },
+    sql: {
+      path: "export.sql",
+      extension: "sql",
+      label: "SQL",
+    },
+  };
+  const selected = formats[format] || formats.zip;
   try {
     await downloadFile(
-      `/api/campaigns/${State.currentCampaign.id}/export`,
-      `morfocampo_${State.currentCampaign.campaign_id || "export"}.zip`
+      `/api/campaigns/${State.currentCampaign.id}/${selected.path}`,
+      `morfocampo_${campaign}.${selected.extension}`
     );
+    toast(`Exportação ${selected.label} iniciada`);
   } catch (e) {
     toast("Exportação falhou: " + e.message, "error");
   }
@@ -1007,12 +1031,7 @@ function renderValidationResult(result) {
 }
 
 async function exportCampaign() {
-  const url = `/api/campaigns/${State.currentCampaign.id}/export`;
-  try {
-    await downloadFile(url, `morfocampo_${State.currentCampaign.campaign_id || "export"}.zip`);
-  } catch (e) {
-    toast("Exportação falhou: " + e.message, "error");
-  }
+  return adminExportFormat("zip");
 }
 
 // ─── Modal de importação CSV silvipastoril ────────────────────────────────────

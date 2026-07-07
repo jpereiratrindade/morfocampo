@@ -489,24 +489,56 @@ async def admin_summary(campaign_id: int):
 # Exportação
 # ---------------------------------------------------------------------------
 
-@app.get("/api/campaigns/{campaign_id}/export")
-async def export_campaign(campaign_id: int):
-    """Exporta CSV + último relatório de validação como .zip."""
+def _campaign_export_base(campaign_id: int) -> tuple[dict, str, str]:
     camp = db.get_campaign(_conn, campaign_id)
     if not camp:
         raise HTTPException(404, "Campanha não encontrada")
+    slug = _safe_slug(f"{camp['project_id']}_{camp['campaign_id']}")
+    csv_content = "\n".join(db.export_csv_lines(_conn, campaign_id)) + "\n"
+    return camp, slug, csv_content
 
-    csv_lines = db.export_csv_lines(_conn, campaign_id)
-    csv_content = "\n".join(csv_lines)
+
+@app.get("/api/campaigns/{campaign_id}/export.csv")
+async def export_campaign_csv(campaign_id: int):
+    """Exporta somente o CSV da campanha."""
+    _, slug, csv_content = _campaign_export_base(campaign_id)
+    filename = f"morfocampo_{slug}_registros.csv"
+    return StreamingResponse(
+        io.BytesIO(csv_content.encode("utf-8")),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/api/campaigns/{campaign_id}/export.sql")
+async def export_campaign_sql(campaign_id: int):
+    """Exporta dump SQL autocontido da campanha."""
+    camp = db.get_campaign(_conn, campaign_id)
+    if not camp:
+        raise HTTPException(404, "Campanha não encontrada")
+    slug = _safe_slug(f"{camp['project_id']}_{camp['campaign_id']}")
+    sql_content = db.export_campaign_sql(_conn, campaign_id)
+    filename = f"morfocampo_{slug}.sql"
+    return StreamingResponse(
+        io.BytesIO(sql_content.encode("utf-8")),
+        media_type="application/sql; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.get("/api/campaigns/{campaign_id}/export")
+async def export_campaign(campaign_id: int):
+    """Exporta CSV + último relatório de validação como .zip."""
+    _, slug, csv_content = _campaign_export_base(campaign_id)
 
     last_run = db.last_validation(_conn, campaign_id)
     report_md = last_run["report_md"] if last_run else "# Sem validação\n\nRode /validate primeiro."
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        slug = _safe_slug(f"{camp['project_id']}_{camp['campaign_id']}")
         zf.writestr(f"{slug}_registros.csv", csv_content)
         zf.writestr(f"{slug}_relatorio_validacao.md", report_md)
+        zf.writestr(f"{slug}_campanha.sql", db.export_campaign_sql(_conn, campaign_id))
 
     zip_buffer.seek(0)
     filename = f"morfocampo_{slug}.zip"
