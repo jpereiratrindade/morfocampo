@@ -15,18 +15,25 @@ novo recurso local nem publique uma mudanca de integracao.
 
 Identificador deste projeto no registro: `morfocampo`.
 
-## Canais com o SisTer-Campo
+## Canais com o SisTer-Nexo (IS-MORFOCAMPO-NEXO-001)
 
-- pacote offline: exportação `camposync.package/1.0.0`;
-- API: envio explícito do mesmo ZIP, sem alterar o contrato.
+A especificação formal de requisitos e conformidade arquitetural com o SisTer-Nexo é governada por [`docs/IS-MORFOCAMPO-NEXO-001.md`](docs/IS-MORFOCAMPO-NEXO-001.md).
 
-Configuração opcional da API:
+- **Contrato de Intercâmbio**: `camposync.package/2.0.0`
+- **Operação**: Local-first e offline-first no MorfoNode (Raspberry Pi 5)
+- **API institucional do Nexo**:
+  - `GET /api/v1/integrations/morfocampo/contexts` (cache local de contextos autorizados)
+  - `POST /api/v1/integrations/morfocampo/packages` (sincronização via outbox imutável com recibo `camposync.receipt/1.0.0`)
+
+Configuração de runtime do MorfoNode:
 
 ```text
-MORFOCAMPO_SISTER_CAMPO_URL=https://host-do-sister-campo:8013
-MORFOCAMPO_SISTER_CAMPO_TOKEN_FILE=/caminho/protegido/token
-MORFOCAMPO_SISTER_CAMPO_CA_FILE=/caminho/protegido/ca.crt
+MORFOCAMPO_NEXO_URL=https://host-do-nexo:8000
+MORFOCAMPO_NEXO_TOKEN_FILE=/caminho/protegido/token
+MORFOCAMPO_NEXO_CA_FILE=/caminho/protegido/ca.crt
 ```
+*(Variáveis legadas `MORFOCAMPO_SISTER_CAMPO_*` são mantidas como fallback de compatibilidade).*
 
 HTTP sem TLS é aceito somente em loopback. Segredos não são declarados no
 registro central nem versionados.
+

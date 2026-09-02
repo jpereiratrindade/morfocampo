@@ -51,15 +51,33 @@
       <div style="display:flex;flex-direction:column;gap:12px">
         <h2 style="margin-bottom:4px">Nova campanha</h2>
         <div class="form-group">
+          <label for="new-mode">Modo Institucional</label>
+          <select id="new-mode" onchange="onCampaignModeChange()">
+            <option value="integrated">Integrado ao SisTer-Nexo (com contexto)</option>
+            <option value="standalone">Local / Standalone (fora de integração)</option>
+          </select>
+        </div>
+
+        <div id="context-group" class="form-group">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <label for="new-context-id">Collection Context (Nexo) *</label>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="syncContextsFromNexo()" style="font-size:0.75rem;padding:2px 8px">⟳ Atualizar</button>
+          </div>
+          <select id="new-context-id" onchange="onContextSelectChange()"></select>
+          <div id="context-details" style="font-size:0.8rem;color:var(--text-dim);margin-top:4px"></div>
+        </div>
+
+        <div id="project-group" class="form-group hidden">
           <label for="new-project">Projeto *</label>
           <input id="new-project" type="text" placeholder="ex: PRJ-BUTIA">
         </div>
+
         <div class="form-group">
-          <label for="new-campaign">Campanha *</label>
+          <label for="new-campaign">Identificador da Campanha *</label>
           <input id="new-campaign" type="text" placeholder="ex: C01">
         </div>
         <div class="form-group">
-          <label for="new-area">Área</label>
+          <label for="new-area">Área / Parcela</label>
           <input id="new-area" type="text" placeholder="ex: Butiazal São Miguel">
         </div>
         <details style="color:var(--text-dim);font-size:0.85rem">
@@ -116,11 +134,15 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button id="admin-validate-btn" class="btn btn-primary" style="flex:1"
                 onclick="adminValidate()">▶ Validar campanha</button>
-        <button class="btn btn-ghost" onclick="adminExportFormat('camposync')" title="Exportar CampoSync para o SisTer-Campo">⬇ CampoSync</button>
-        <button class="btn btn-ghost" onclick="adminSyncSisterCampo()" title="Enviar CampoSync pela API configurada">⇄ SisTer-Campo</button>
+        <button class="btn btn-ghost" onclick="adminExportFormat('camposync')" title="Exportar pacote CampoSync 2.0.0">⬇ CampoSync 2.0</button>
+        <button class="btn btn-ghost" onclick="adminSyncNexo()" title="Sincronizar via Outbox com SisTer-Nexo">⇄ SisTer-Nexo</button>
         <button class="btn btn-ghost" onclick="adminExportFormat('zip')" title="Exportar backup ZIP">ZIP</button>
         <button class="btn btn-ghost" onclick="adminExportFormat('csv')" title="Exportar CSV">CSV</button>
         <button class="btn btn-ghost" onclick="adminExportFormat('sql')" title="Exportar SQL">SQL</button>
+        <button class="btn btn-ghost" style="color:var(--irder);border-color:var(--irder-border)"
+                onclick="openIrderModal()" title="Importar CSV silvipastoril">🌳 CSV</button>
+      </div>
+
         <button class="btn btn-ghost" style="color:var(--irder);border-color:var(--irder-border)"
                 onclick="openIrderModal()" title="Importar CSV silvipastoril">🌳 CSV</button>
       </div>
@@ -295,9 +317,10 @@
             <button id="validate-btn" class="btn btn-primary" style="flex:1" onclick="runValidation()">
               ▶ Validar campanha
             </button>
-            <button class="btn btn-ghost" onclick="adminExportFormat('camposync')" title="Exportar pacote CampoSync">
-              ⬇ CampoSync
+            <button class="btn btn-ghost" onclick="adminExportFormat('camposync')" title="Exportar pacote CampoSync 2.0.0">
+              ⬇ CampoSync 2.0
             </button>
+            <button class="btn btn-ghost" onclick="adminSyncNexo()" title="Sincronizar via Outbox com SisTer-Nexo">⇄ Nexo</button>
             <button class="btn btn-ghost" onclick="exportCampaign()" title="Exportar backup CSV + relatório">ZIP</button>
             <button class="btn btn-ghost" onclick="adminExportFormat('csv')" title="Exportar CSV">CSV</button>
             <button class="btn btn-ghost" onclick="adminExportFormat('sql')" title="Exportar SQL">SQL</button>

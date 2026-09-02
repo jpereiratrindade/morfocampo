@@ -200,35 +200,122 @@ function renderCampaignList(campaigns) {
       </div>`;
     return;
   }
-  list.innerHTML = campaigns.map(c => `
+  list.innerHTML = campaigns.map(c => {
+    const isIntegrated = c.mode !== "standalone";
+    const badge = isIntegrated
+      ? `<span class="header-badge" style="background:rgba(34,197,94,0.15);color:var(--green);border-color:var(--green);font-size:0.65rem;margin-left:6px">NEXO</span>`
+      : `<span class="header-badge" style="background:rgba(234,179,8,0.15);color:var(--yellow);border-color:var(--yellow);font-size:0.65rem;margin-left:6px">LOCAL</span>`;
+    const contextInfo = isIntegrated && c.context_id ? `<span style="font-size:0.75rem;color:var(--text-dim)">[${c.context_id}]</span> ` : "";
+    return `
     <div class="record-item ok" style="margin-bottom:10px">
       <div class="record-id">${c.campaign_id}</div>
       <div class="record-info" style="cursor:pointer" onclick="selectCampaign(${c.id})">
-        <div class="record-main">${c.project_id}</div>
-        <div class="record-sub">${c.area || "—"} &nbsp;·&nbsp; ${c.record_count} registros</div>
+        <div class="record-main">${c.project_id} ${badge}</div>
+        <div class="record-sub">${contextInfo}${c.area || "—"} &nbsp;·&nbsp; ${c.record_count} registros</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         <button class="btn btn-primary btn-sm" onclick="selectCampaign(${c.id})">🎙 Coletar</button>
         <button class="btn btn-ghost btn-sm" onclick="openAdmin(${c.id})" style="color:var(--blue);border-color:var(--blue)">⚙ Admin</button>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
+}
+
+let CachedContexts = [];
+
+async function loadContextsForSelect() {
+  try {
+    CachedContexts = await api("GET", "/api/contexts");
+    const sel = $("new-context-id");
+    if (!sel) return;
+    if (!CachedContexts.length) {
+      sel.innerHTML = `<option value="">Nenhum contexto provisionado em cache</option>`;
+      $("context-details").innerHTML = `<em>Nenhum contexto institucional em cache. Sincronize com o Nexo ou utilize o modo local.</em>`;
+      return;
+    }
+    sel.innerHTML = CachedContexts.map(ctx => `
+      <option value="${ctx.context_id}">${ctx.project_id} / ${ctx.research_activity_id} (${ctx.context_id})</option>
+    `).join("");
+    onContextSelectChange();
+  } catch (e) {
+    console.warn("Falha ao carregar contextos:", e);
+  }
+}
+
+function onContextSelectChange() {
+  const sel = $("new-context-id");
+  if (!sel) return;
+  const ctx = CachedContexts.find(c => c.context_id === sel.value);
+  const details = $("context-details");
+  if (ctx) {
+    details.innerHTML = `<strong>Projeto:</strong> ${ctx.project_id} &nbsp;|&nbsp; <strong>Atividade:</strong> ${ctx.research_activity_id} (Rev ${ctx.revision})`;
+  } else {
+    details.innerHTML = "";
+  }
+}
+
+function onCampaignModeChange() {
+  const mode = $("new-mode").value;
+  if (mode === "integrated") {
+    $("context-group").classList.remove("hidden");
+    $("project-group").classList.add("hidden");
+  } else {
+    $("context-group").classList.add("hidden");
+    $("project-group").classList.remove("hidden");
+  }
+}
+
+async function syncContextsFromNexo() {
+  try {
+    toast("Consultando contextos autorizados no Nexo...");
+    const res = await api("POST", "/api/contexts/sync");
+    toast(`Contextos atualizados (${res.synced_count} recebidos)`);
+    await loadContextsForSelect();
+  } catch (e) {
+    toast("Falha na busca de contextos: " + e.message, "error");
+  }
 }
 
 async function createCampaign() {
-  const project  = $("new-project").value.trim();
+  const mode = $("new-mode").value;
   const campaign = $("new-campaign").value.trim();
-  const area     = $("new-area").value.trim();
-  const maxCap   = parseFloat($("new-max-cap").value) || null;
-  const maxDap   = parseFloat($("new-max-dap").value) || null;
-  const maxH     = parseFloat($("new-max-height").value) || null;
+  const area = $("new-area").value.trim();
+  const maxCap = parseFloat($("new-max-cap").value) || null;
+  const maxDap = parseFloat($("new-max-dap").value) || null;
+  const maxH = parseFloat($("new-max-height").value) || null;
 
-  if (!project || !campaign) {
-    toast("Projeto e campanha são obrigatórios", "warn"); return;
+  if (!campaign) {
+    toast("Identificador da campanha é obrigatório", "warn");
+    return;
   }
+
+  let project = "";
+  let contextId = null;
+
+  if (mode === "integrated") {
+    contextId = $("new-context-id").value;
+    if (!contextId) {
+      toast("Selecione um Collection Context provisionado ou use modo Local", "warn");
+      return;
+    }
+  } else {
+    project = $("new-project").value.trim();
+    if (!project) {
+      toast("Projeto é obrigatório no modo local", "warn");
+      return;
+    }
+  }
+
   try {
     await api("POST", "/api/campaigns", {
-      project_id: project, campaign_id: campaign, area,
-      max_cap_cm: maxCap, max_dap_cm: maxDap, max_height_m: maxH,
+      project_id: project,
+      campaign_id: campaign,
+      area,
+      max_cap_cm: maxCap,
+      max_dap_cm: maxDap,
+      max_height_m: maxH,
+      mode,
+      context_id: contextId,
     });
     toast("Campanha criada!");
     $("create-form").classList.add("hidden");
@@ -240,13 +327,20 @@ async function createCampaign() {
 }
 
 function clearCreateForm() {
-  ["new-project","new-campaign","new-area",
-   "new-max-cap","new-max-dap","new-max-height"].forEach(id => { $(id).value = ""; });
+  ["new-project", "new-campaign", "new-area",
+   "new-max-cap", "new-max-dap", "new-max-height"].forEach(id => {
+    if ($(id)) $(id).value = "";
+  });
 }
 
 function toggleCreateForm() {
-  $("create-form").classList.toggle("hidden");
+  const form = $("create-form");
+  form.classList.toggle("hidden");
+  if (!form.classList.contains("hidden")) {
+    loadContextsForSelect();
+  }
 }
+
 
 // ─── Tela ADMIN ───────────────────────────────────────────────────────────────
 
@@ -462,19 +556,25 @@ async function adminExportFormat(format = "zip") {
   }
 }
 
-async function adminSyncSisterCampo() {
+async function adminSyncNexo() {
   if (!State.currentCampaign) return;
   try {
+    toast("Enviando pacote CampoSync 2.0.0 via Outbox ao SisTer-Nexo...");
     const result = await api(
       "POST",
-      `/api/campaigns/${State.currentCampaign.id}/sync/sister-campo`
+      `/api/campaigns/${State.currentCampaign.id}/sync/nexo`
     );
-    const repeated = result.sister_campo?.repeated ? " (já recebido)" : "";
-    toast(`Campanha enviada ao SisTer-Campo${repeated}`);
+    const repeated = result.repeated ? " (idempotente - já registrado)" : "";
+    toast(`Campanha sincronizada com o SisTer-Nexo!${repeated}`);
   } catch (e) {
     toast("Sincronização falhou: " + e.message, "error");
   }
 }
+
+async function adminSyncSisterCampo() {
+  return adminSyncNexo();
+}
+
 
 // ─── Tela SESSION SETUP ───────────────────────────────────────────────────────
 

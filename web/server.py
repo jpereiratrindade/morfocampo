@@ -12,6 +12,7 @@ import argparse
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -24,7 +25,7 @@ from typing import Annotated, Optional
 
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -40,10 +41,15 @@ from morfocampo_bridge import MorfocampoBridge
 # Argumentos CLI
 # ---------------------------------------------------------------------------
 
-def parse_args() -> argparse.Namespace:
+DEFAULT_BIN = Path(__file__).resolve().parents[1] / "build" / "morfocampo"
+if not DEFAULT_BIN.exists():
+    DEFAULT_BIN = Path("../build/morfocampo")
+
+
+def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="morfocampo web server")
     p.add_argument("--db",   default="campo.db",         help="Caminho do banco SQLite3")
-    p.add_argument("--bin",  default="../build/morfocampo", help="Caminho do binário morfocampo C++")
+    p.add_argument("--bin",  default=str(DEFAULT_BIN),   help="Caminho do binário morfocampo C++")
     p.add_argument("--port", type=int, default=8000,      help="Porta HTTP/HTTPS")
     p.add_argument("--host", default="0.0.0.0",           help="Host (0.0.0.0 para aceitar celulares na rede)")
     p.add_argument("--audio-dir", default="audio_files",  help="Diretório para armazenar áudios gravados")
@@ -51,10 +57,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--ssl-certfile", default=None,        help="Caminho para certificado SSL")
     p.add_argument("--auth-token", default=os.environ.get("MORFOCAMPO_AUTH_TOKEN"),
                    help="Token local opcional para proteger rotas /api")
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
-args = parse_args()
+args = parse_args() if __name__ == "__main__" else parse_args([])
+
 
 # ---------------------------------------------------------------------------
 # Inicialização
@@ -66,16 +73,28 @@ AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 AUTH_TOKEN = args.auth_token
 MAX_AUDIO_BYTES = int(os.environ.get("MORFOCAMPO_MAX_AUDIO_BYTES", 25 * 1024 * 1024))
 MAX_CSV_BYTES = int(os.environ.get("MORFOCAMPO_MAX_CSV_BYTES", 5 * 1024 * 1024))
-SISTER_CAMPO_API_URL = os.environ.get("MORFOCAMPO_SISTER_CAMPO_URL", "")
-SISTER_CAMPO_TOKEN_FILE = os.environ.get("MORFOCAMPO_SISTER_CAMPO_TOKEN_FILE", "")
-SISTER_CAMPO_CA_FILE = os.environ.get("MORFOCAMPO_SISTER_CAMPO_CA_FILE")
+
+# MC-NEXO-04 e MC-NEXO-07: Configuração neutra de integração SisTer-Nexo (com fallback retrocompatível)
+NEXO_API_URL = os.environ.get("MORFOCAMPO_NEXO_URL") or os.environ.get("MORFOCAMPO_SISTER_CAMPO_URL", "")
+NEXO_TOKEN_FILE = os.environ.get("MORFOCAMPO_NEXO_TOKEN_FILE") or os.environ.get("MORFOCAMPO_SISTER_CAMPO_TOKEN_FILE", "")
+NEXO_CA_FILE = os.environ.get("MORFOCAMPO_NEXO_CA_FILE") or os.environ.get("MORFOCAMPO_SISTER_CAMPO_CA_FILE")
+
+# MC-NEXO-06: Diretório de armazenamento para artefatos imutáveis do Outbox
+OUTBOX_DIR = Path(os.environ.get("MORFOCAMPO_OUTBOX_DIR", Path(DB_PATH).resolve().parent / "outbox"))
+OUTBOX_DIR.mkdir(parents=True, exist_ok=True)
+
 ALLOWED_AUDIO_SUFFIXES = {".webm", ".wav", ".ogg", ".m4a", ".mp4"}
 ALLOWED_CSV_SUFFIXES = {".csv", ".txt"}
 
 _conn = db.get_connection(DB_PATH)
 db.init_db(_conn)
 
-bridge = MorfocampoBridge(args.bin)
+bridge: Optional[MorfocampoBridge] = None
+try:
+    bridge = MorfocampoBridge(args.bin)
+except (FileNotFoundError, OSError):
+    bridge = None
+
 
 
 def _parse_version_file(path: Path) -> dict:
@@ -209,17 +228,116 @@ async def status():
 
 
 # ---------------------------------------------------------------------------
+# MC-NEXO-01: Identidade local do MorfoNode
+# ---------------------------------------------------------------------------
+
+@app.get("/api/morfonode/status")
+async def get_morfonode_status():
+    ident = db.get_node_identity(_conn)
+    serial = db.get_hardware_serial(AUDIO_DIR.parent)
+    return {
+        "hardware_serial": serial,
+        "is_registered": db.is_node_registered(_conn),
+        "is_revoked": db.is_node_revoked(_conn),
+        "identity": {
+            "morfonode_id": ident["morfonode_id"],
+            "hardware_serial": ident["hardware_serial"],
+            "credential_id": ident["credential_id"],
+            "registration_state": ident["registration_state"],
+            "registered_at": ident.get("registered_at"),
+            "updated_at": ident.get("updated_at"),
+        } if ident else None,
+    }
+
+
+class MorfoNodeIdentityCreate(BaseModel):
+    morfonode_id: str
+    credential_id: str
+    credential_token: str
+    registration_state: str = "registered"
+
+
+@app.post("/api/morfonode/identity")
+async def set_morfonode_identity(body: MorfoNodeIdentityCreate):
+    serial = db.get_hardware_serial(AUDIO_DIR.parent)
+    ident = db.set_node_identity(
+        _conn,
+        body.morfonode_id,
+        serial,
+        body.credential_id,
+        body.credential_token,
+        body.registration_state,
+    )
+    return {
+        "status": "ok",
+        "morfonode_id": ident["morfonode_id"],
+        "registration_state": ident["registration_state"],
+    }
+
+
+@app.post("/api/morfonode/revoke")
+async def revoke_morfonode(body: dict):
+    morfonode_id = body.get("morfonode_id")
+    if not morfonode_id:
+        raise HTTPException(400, "morfonode_id é obrigatório")
+    db.revoke_node_identity(_conn, morfonode_id)
+    return {"status": "revoked", "morfonode_id": morfonode_id}
+
+
+# ---------------------------------------------------------------------------
+# MC-NEXO-02: Collection Contexts
+# ---------------------------------------------------------------------------
+
+@app.get("/api/contexts")
+async def list_contexts():
+    return db.list_collection_contexts(_conn)
+
+
+@app.post("/api/contexts/sync")
+async def sync_contexts():
+    """MC-NEXO-02: Busca contextos autorizados do Nexo e atualiza o cache local."""
+    if not NEXO_API_URL:
+        raise HTTPException(503, "URL do Nexo não configurada")
+
+    ident = db.get_node_identity(_conn)
+    token = ""
+    if NEXO_TOKEN_FILE:
+        try:
+            token = camposync.read_service_token(NEXO_TOKEN_FILE)
+        except Exception:
+            pass
+    if not token and ident and ident.get("credential_token"):
+        token = ident["credential_token"]
+
+    if not token:
+        raise HTTPException(503, "Credencial do nó indisponível")
+
+    try:
+        contexts = camposync.fetch_contexts_from_nexo(
+            NEXO_API_URL, token, ca_file=NEXO_CA_FILE
+        )
+        saved = []
+        for ctx in contexts:
+            saved.append(db.upsert_collection_context(_conn, ctx))
+        return {"status": "ok", "synced_count": len(saved), "contexts": saved}
+    except Exception as exc:
+        raise HTTPException(502, f"Falha ao obter contextos do Nexo: {exc}")
+
+
+# ---------------------------------------------------------------------------
 # Campaigns
 # ---------------------------------------------------------------------------
 
 class CampaignCreate(BaseModel):
-    project_id: str
+    project_id: str = ""
     campaign_id: str
     area: str = ""
     max_cap_cm: Optional[float] = None
     max_dap_cm: Optional[float] = None
     max_height_m: Optional[float] = None
     max_crown_m: Optional[float] = None
+    mode: str = "integrated"
+    context_id: Optional[str] = None
 
 
 @app.get("/api/campaigns")
@@ -229,12 +347,17 @@ async def list_campaigns():
 
 @app.post("/api/campaigns", status_code=201)
 async def create_campaign(body: CampaignCreate):
-    cid = db.create_campaign(
-        _conn,
-        body.project_id, body.campaign_id, body.area,
-        body.max_cap_cm, body.max_dap_cm,
-        body.max_height_m, body.max_crown_m,
-    )
+    try:
+        cid = db.create_campaign(
+            _conn,
+            body.project_id, body.campaign_id, body.area,
+            body.max_cap_cm, body.max_dap_cm,
+            body.max_height_m, body.max_crown_m,
+            mode=body.mode,
+            context_id=body.context_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
     return db.get_campaign(_conn, cid)
 
 
@@ -244,6 +367,7 @@ async def get_campaign(campaign_id: int):
     if not camp:
         raise HTTPException(404, "Campanha não encontrada")
     return camp
+
 
 
 # ---------------------------------------------------------------------------
@@ -554,75 +678,175 @@ async def export_campaign(campaign_id: int):
     )
 
 
-@app.get("/api/campaigns/{campaign_id}/export.camposync")
-async def export_campaign_camposync(campaign_id: int):
-    """Exporta um pacote CampoSync versionado para o SisTer-Campo."""
-    camp, slug, csv_content = _campaign_export_base(campaign_id)
+def _materialize_campaign_outbox(campaign_id: int) -> tuple[Path, dict]:
+    """MC-NEXO-05 / MC-NEXO-06: Materializa o pacote CampoSync 2.0.0 no Outbox de forma imutável."""
+    camp = db.get_campaign(_conn, campaign_id)
+    if not camp:
+        raise HTTPException(404, "Campanha não encontrada")
+
     last_run = db.last_validation(_conn, campaign_id)
     report_md = (
         last_run["report_md"]
         if last_run
         else "# Sem validação\n\nA campanha ainda não possui validação registrada."
     )
-    package, manifest = camposync.build_package(
+
+    node_ident = db.get_node_identity(_conn)
+    producer_ver = VERSION_INFO.get("version", "0.2.4")
+
+    tmp_target = OUTBOX_DIR / f"tmp_{campaign_id}_{secrets.token_hex(4)}.zip"
+    csv_gen = db.stream_csv_lines(_conn, campaign_id)
+    _, manifest = camposync.materialize_package_to_file(
+        tmp_target,
         camp,
-        csv_content,
+        csv_gen,
         report_md,
-        VERSION_INFO["version"],
+        producer_ver,
+        node_identity=node_ident,
     )
+
+    final_path = OUTBOX_DIR / f"{manifest['package_id']}.camposync.zip"
+    if tmp_target != final_path:
+        shutil.move(str(tmp_target), str(final_path))
+
+    context_id = manifest["context"]["context_id"]
+    db.enqueue_outbox_package(
+        _conn,
+        manifest["package_id"],
+        campaign_id,
+        context_id,
+        manifest["checksum"],
+        str(final_path),
+        state="pending",
+    )
+    return final_path, manifest
+
+
+@app.get("/api/campaigns/{campaign_id}/export.camposync")
+async def export_campaign_camposync(campaign_id: int):
+    """MC-NEXO-04 / MC-NEXO-05: Exporta pacote CampoSync 2.0.0 via streaming kernel."""
+    camp = db.get_campaign(_conn, campaign_id)
+    if not camp:
+        raise HTTPException(404, "Campanha não encontrada")
+    slug = _safe_slug(f"{camp['project_id']}_{camp['campaign_id']}")
+    artifact_path, manifest = _materialize_campaign_outbox(campaign_id)
     filename = f"morfocampo_{slug}_{manifest['package_id']}.camposync.zip"
-    return StreamingResponse(
-        package,
+    return FileResponse(
+        str(artifact_path),
         media_type="application/zip",
+        filename=filename,
         headers={
-            "Content-Disposition": f"attachment; filename={filename}",
             "X-CampoSync-Package-Id": manifest["package_id"],
             "X-CampoSync-Checksum": manifest["checksum"],
+            "X-CampoSync-Contract-Version": "2.0.0",
         },
     )
 
 
-@app.post("/api/campaigns/{campaign_id}/sync/sister-campo")
-async def sync_campaign_to_sister_campo(campaign_id: int):
-    """Envia explicitamente o mesmo pacote CampoSync pela API configurada."""
-    if not SISTER_CAMPO_API_URL or not SISTER_CAMPO_TOKEN_FILE:
-        raise HTTPException(503, "Integração SisTer-Campo não configurada")
-    camp, _, csv_content = _campaign_export_base(campaign_id)
-    last_run = db.last_validation(_conn, campaign_id)
-    report_md = (
-        last_run["report_md"]
-        if last_run
-        else "# Sem validação\n\nA campanha ainda não possui validação registrada."
-    )
-    package, manifest = camposync.build_package(
-        camp,
-        csv_content,
-        report_md,
-        VERSION_INFO["version"],
-    )
-    try:
-        token = camposync.read_service_token(SISTER_CAMPO_TOKEN_FILE)
-        result = camposync.send_package(
-            package,
-            SISTER_CAMPO_API_URL,
-            token,
-            ca_file=SISTER_CAMPO_CA_FILE,
-        )
-    except FileNotFoundError:
-        raise HTTPException(503, "Credencial SisTer-Campo indisponível")
-    except ValueError:
-        raise HTTPException(503, "Configuração SisTer-Campo inválida")
-    except url_error.HTTPError as exc:
-        if exc.code == 409:
-            raise HTTPException(409, "Conflito de pacote no SisTer-Campo")
-        raise HTTPException(502, "SisTer-Campo recusou o pacote")
-    except (OSError, url_error.URLError, json.JSONDecodeError):
-        raise HTTPException(502, "SisTer-Campo indisponível")
+@app.post("/api/campaigns/{campaign_id}/outbox")
+async def enqueue_campaign_outbox(campaign_id: int):
+    """MC-NEXO-06: Gera e enfileira o pacote no Outbox durável para sincronização futura."""
+    artifact_path, manifest = _materialize_campaign_outbox(campaign_id)
     return {
+        "status": "enqueued",
         "package_id": manifest["package_id"],
         "checksum": manifest["checksum"],
-        "sister_campo": result,
+        "artifact_path": str(artifact_path),
     }
+
+
+@app.get("/api/outbox")
+async def list_outbox(state: Optional[str] = None):
+    """MC-NEXO-06: Lista pacotes armazenados no outbox durável."""
+    return db.list_outbox_packages(_conn, state=state)
+
+
+@app.post("/api/campaigns/{campaign_id}/sync/nexo")
+async def sync_campaign_to_nexo(campaign_id: int):
+    """MC-NEXO-07: Envia o pacote CampoSync 2.0.0 para o Nexo reutilizando artefato imutável."""
+    if not NEXO_API_URL:
+        raise HTTPException(503, "Integração SisTer-Nexo não configurada")
+
+    if db.is_node_revoked(_conn):
+        raise HTTPException(403, "Identidade do MorfoNode está revogada. Sincronização bloqueada.")
+
+    ident = db.get_node_identity(_conn)
+    token = ""
+    if NEXO_TOKEN_FILE:
+        try:
+            token = camposync.read_service_token(NEXO_TOKEN_FILE)
+        except Exception:
+            pass
+    if not token and ident and ident.get("credential_token"):
+        token = ident["credential_token"]
+
+    if not token:
+        raise HTTPException(503, "Credencial de autenticação do nó indisponível")
+
+    # MC-NEXO-06: Reutiliza o artefato imutável existente se já gerado
+    existing_pkg = db.get_outbox_package_by_campaign(_conn, campaign_id)
+    if existing_pkg and Path(existing_pkg["artifact_path"]).exists():
+        artifact_path = Path(existing_pkg["artifact_path"])
+        package_id = existing_pkg["package_id"]
+        checksum = existing_pkg["checksum"]
+    else:
+        artifact_path, manifest = _materialize_campaign_outbox(campaign_id)
+        package_id = manifest["package_id"]
+        checksum = manifest["checksum"]
+
+    db.update_outbox_package_state(_conn, package_id, "sending", increment_attempt=True)
+
+    try:
+        result = camposync.send_package_file(
+            artifact_path,
+            NEXO_API_URL,
+            token,
+            ca_file=NEXO_CA_FILE,
+        )
+        receipt_id = result.get("receipt", {}).get("receipt_id") or result.get("receipt_id")
+        db.update_outbox_package_state(
+            _conn, package_id, "acknowledged", receipt_id=receipt_id
+        )
+        return {
+            "status": "acknowledged",
+            "package_id": package_id,
+            "checksum": checksum,
+            "nexo": result,
+        }
+    except FileNotFoundError:
+        db.update_outbox_package_state(_conn, package_id, "failed", error_message="Artefato ou credencial indisponível")
+        raise HTTPException(503, "Credencial ou pacote indisponível")
+    except ValueError as exc:
+        db.update_outbox_package_state(_conn, package_id, "failed", error_message=str(exc))
+        raise HTTPException(503, f"Configuração Nexo inválida: {exc}")
+    except url_error.HTTPError as exc:
+        if exc.code == 409:
+            # Idempotência: sucesso lógico
+            db.update_outbox_package_state(_conn, package_id, "acknowledged", error_message="Repeated (409)")
+            return {
+                "status": "acknowledged",
+                "repeated": True,
+                "package_id": package_id,
+                "checksum": checksum,
+                "message": "Pacote já registrado no Nexo (idempotência)",
+            }
+        elif exc.code in {401, 403}:
+            if ident:
+                db.revoke_node_identity(_conn, ident["morfonode_id"])
+            db.update_outbox_package_state(_conn, package_id, "failed", error_message="Credencial rejeitada pelo Nexo")
+            raise HTTPException(403, "Credencial rejeitada ou revogada pelo Nexo")
+        db.update_outbox_package_state(_conn, package_id, "failed", error_message=f"HTTP {exc.code}")
+        raise HTTPException(502, f"Nexo recusou o pacote (HTTP {exc.code})")
+    except (OSError, url_error.URLError, json.JSONDecodeError) as exc:
+        db.update_outbox_package_state(_conn, package_id, "failed", error_message=str(exc))
+        raise HTTPException(502, f"Nexo indisponível: {exc}")
+
+
+@app.post("/api/campaigns/{campaign_id}/sync/sister-campo")
+async def sync_campaign_to_sister_campo(campaign_id: int):
+    """Alias retrocompatível delegando para a sincronização Nexo."""
+    return await sync_campaign_to_nexo(campaign_id)
+
 
 
 # ---------------------------------------------------------------------------
