@@ -116,7 +116,9 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button id="admin-validate-btn" class="btn btn-primary" style="flex:1"
                 onclick="adminValidate()">▶ Validar campanha</button>
-        <button class="btn btn-ghost" onclick="adminExportFormat('zip')" title="Exportar ZIP">⬇ ZIP</button>
+        <button class="btn btn-ghost" onclick="adminExportFormat('camposync')" title="Exportar CampoSync para o SisTer-Campo">⬇ CampoSync</button>
+        <button class="btn btn-ghost" onclick="adminSyncSisterCampo()" title="Enviar CampoSync pela API configurada">⇄ SisTer-Campo</button>
+        <button class="btn btn-ghost" onclick="adminExportFormat('zip')" title="Exportar backup ZIP">ZIP</button>
         <button class="btn btn-ghost" onclick="adminExportFormat('csv')" title="Exportar CSV">CSV</button>
         <button class="btn btn-ghost" onclick="adminExportFormat('sql')" title="Exportar SQL">SQL</button>
         <button class="btn btn-ghost" style="color:var(--irder);border-color:var(--irder-border)"
@@ -293,9 +295,10 @@
             <button id="validate-btn" class="btn btn-primary" style="flex:1" onclick="runValidation()">
               ▶ Validar campanha
             </button>
-            <button class="btn btn-ghost" onclick="exportCampaign()" title="Exportar CSV + relatório">
-              ⬇ ZIP
+            <button class="btn btn-ghost" onclick="adminExportFormat('camposync')" title="Exportar pacote CampoSync">
+              ⬇ CampoSync
             </button>
+            <button class="btn btn-ghost" onclick="exportCampaign()" title="Exportar backup CSV + relatório">ZIP</button>
             <button class="btn btn-ghost" onclick="adminExportFormat('csv')" title="Exportar CSV">CSV</button>
             <button class="btn btn-ghost" onclick="adminExportFormat('sql')" title="Exportar SQL">SQL</button>
           </div>

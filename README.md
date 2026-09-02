@@ -4,7 +4,15 @@
 
 `morfocampo` é uma ferramenta para coleta, normalização, importação e validação de dados morfométricos e silvipastoris em campo.
 
+As mudancas de integracao e recursos locais seguem
+[`SISTER_INTEGRATION.md`](SISTER_INTEGRATION.md).
+
 O projeto combina um núcleo C++20, usado pela CLI e pelos testes, com uma interface web mobile em Python/FastAPI para coleta em campo com SQLite, áudio e integração com o binário principal.
+
+O MorfoCampo conversa com o SisTer-Campo pelo contrato
+`camposync.package/1.0.0`. A interface exporta CSV e relatório de validação em
+um pacote verificável por manifesto e hashes. Áudio e fotografias brutos não
+são incluídos por padrão.
 
 ## Componentes
 

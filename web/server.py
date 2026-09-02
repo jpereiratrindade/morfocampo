@@ -17,6 +17,7 @@ import sys
 import zipfile
 import io
 import json
+from urllib import error as url_error
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Optional
@@ -31,6 +32,7 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).parent))
 import db
 import transcriber
+import camposync
 from morfocampo_bridge import MorfocampoBridge
 
 
@@ -64,6 +66,9 @@ AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 AUTH_TOKEN = args.auth_token
 MAX_AUDIO_BYTES = int(os.environ.get("MORFOCAMPO_MAX_AUDIO_BYTES", 25 * 1024 * 1024))
 MAX_CSV_BYTES = int(os.environ.get("MORFOCAMPO_MAX_CSV_BYTES", 5 * 1024 * 1024))
+SISTER_CAMPO_API_URL = os.environ.get("MORFOCAMPO_SISTER_CAMPO_URL", "")
+SISTER_CAMPO_TOKEN_FILE = os.environ.get("MORFOCAMPO_SISTER_CAMPO_TOKEN_FILE", "")
+SISTER_CAMPO_CA_FILE = os.environ.get("MORFOCAMPO_SISTER_CAMPO_CA_FILE")
 ALLOWED_AUDIO_SUFFIXES = {".webm", ".wav", ".ogg", ".m4a", ".mp4"}
 ALLOWED_CSV_SUFFIXES = {".csv", ".txt"}
 
@@ -547,6 +552,77 @@ async def export_campaign(campaign_id: int):
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@app.get("/api/campaigns/{campaign_id}/export.camposync")
+async def export_campaign_camposync(campaign_id: int):
+    """Exporta um pacote CampoSync versionado para o SisTer-Campo."""
+    camp, slug, csv_content = _campaign_export_base(campaign_id)
+    last_run = db.last_validation(_conn, campaign_id)
+    report_md = (
+        last_run["report_md"]
+        if last_run
+        else "# Sem validação\n\nA campanha ainda não possui validação registrada."
+    )
+    package, manifest = camposync.build_package(
+        camp,
+        csv_content,
+        report_md,
+        VERSION_INFO["version"],
+    )
+    filename = f"morfocampo_{slug}_{manifest['package_id']}.camposync.zip"
+    return StreamingResponse(
+        package,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "X-CampoSync-Package-Id": manifest["package_id"],
+            "X-CampoSync-Checksum": manifest["checksum"],
+        },
+    )
+
+
+@app.post("/api/campaigns/{campaign_id}/sync/sister-campo")
+async def sync_campaign_to_sister_campo(campaign_id: int):
+    """Envia explicitamente o mesmo pacote CampoSync pela API configurada."""
+    if not SISTER_CAMPO_API_URL or not SISTER_CAMPO_TOKEN_FILE:
+        raise HTTPException(503, "Integração SisTer-Campo não configurada")
+    camp, _, csv_content = _campaign_export_base(campaign_id)
+    last_run = db.last_validation(_conn, campaign_id)
+    report_md = (
+        last_run["report_md"]
+        if last_run
+        else "# Sem validação\n\nA campanha ainda não possui validação registrada."
+    )
+    package, manifest = camposync.build_package(
+        camp,
+        csv_content,
+        report_md,
+        VERSION_INFO["version"],
+    )
+    try:
+        token = camposync.read_service_token(SISTER_CAMPO_TOKEN_FILE)
+        result = camposync.send_package(
+            package,
+            SISTER_CAMPO_API_URL,
+            token,
+            ca_file=SISTER_CAMPO_CA_FILE,
+        )
+    except FileNotFoundError:
+        raise HTTPException(503, "Credencial SisTer-Campo indisponível")
+    except ValueError:
+        raise HTTPException(503, "Configuração SisTer-Campo inválida")
+    except url_error.HTTPError as exc:
+        if exc.code == 409:
+            raise HTTPException(409, "Conflito de pacote no SisTer-Campo")
+        raise HTTPException(502, "SisTer-Campo recusou o pacote")
+    except (OSError, url_error.URLError, json.JSONDecodeError):
+        raise HTTPException(502, "SisTer-Campo indisponível")
+    return {
+        "package_id": manifest["package_id"],
+        "checksum": manifest["checksum"],
+        "sister_campo": result,
+    }
 
 
 # ---------------------------------------------------------------------------

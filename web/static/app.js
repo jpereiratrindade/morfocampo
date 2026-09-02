@@ -429,6 +429,11 @@ async function adminExportFormat(format = "zip") {
   if (!State.currentCampaign) return;
   const campaign = State.currentCampaign.campaign_id || "export";
   const formats = {
+    camposync: {
+      path: "export.camposync",
+      extension: "camposync.zip",
+      label: "CampoSync",
+    },
     zip: {
       path: "export",
       extension: "zip",
@@ -454,6 +459,20 @@ async function adminExportFormat(format = "zip") {
     toast(`Exportação ${selected.label} iniciada`);
   } catch (e) {
     toast("Exportação falhou: " + e.message, "error");
+  }
+}
+
+async function adminSyncSisterCampo() {
+  if (!State.currentCampaign) return;
+  try {
+    const result = await api(
+      "POST",
+      `/api/campaigns/${State.currentCampaign.id}/sync/sister-campo`
+    );
+    const repeated = result.sister_campo?.repeated ? " (já recebido)" : "";
+    toast(`Campanha enviada ao SisTer-Campo${repeated}`);
+  } catch (e) {
+    toast("Sincronização falhou: " + e.message, "error");
   }
 }
 
